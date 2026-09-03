@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>纸卡 · Flash Card Workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=LXGW+WenKai+TC&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS — Paper Texture Theme
+   ============================================================ */
+:root {
+  /* Color palette — warm paper tones, OKLCH */
+  --paper-bg:        oklch(94% 0.018 80);
+  --paper-bg-2:      oklch(91% 0.022 78);
+  --paper-card:     oklch(97% 0.012 82);
+  --paper-card-2:   oklch(95% 0.016 80);
+  --paper-dark:     oklch(88% 0.02 75);
+  --ink-primary:    oklch(22% 0.02 50);
+  --ink-secondary:  oklch(38% 0.015 50);
+  --ink-tertiary:   oklch(52% 0.012 55);
+  --ink-faint:      oklch(65% 0.008 60);
+
+  /* Accent — muted red-brown for stamp/ink pad aesthetic */
+  --accent:         oklch(48% 0.09 30);
+  --accent-light:   oklch(68% 0.06 30);
+  --accent-pale:    oklch(88% 0.03 35);
+
+  /* Mastery group colors */
+  --mastery-learn:  oklch(58% 0.08 40);
+  --mastery-familiar: oklch(55% 0.06 60);
+  --mastery-master: oklch(50% 0.07 145);
+  --mastery-learn-bg:  oklch(90% 0.035 40);
+  --mastery-familiar-bg: oklch(90% 0.03 60);
+  --mastery-master-bg: oklch(90% 0.035 145);
+
+  /* Semantic */
+  --success:        oklch(52% 0.12 145);
+  --success-pale:   oklch(88% 0.04 145);
+  --warning:        oklch(62% 0.12 65);
+  --warning-pale:   oklch(88% 0.04 65);
+  --danger:         oklch(52% 0.13 25);
+  --danger-pale:    oklch(88% 0.04 25);
+
+  /* Spacing — 4pt base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Typography */
+  --font-cn: "LXGW WenKai TC", "KaiTi", "STKaiti", serif;
+  --font-en-title: "Caveat", cursive;
+  --font-en-body: "Crimson Text", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+
+  /* Easing */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:    cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Shadows — subtle, warm */
+  --shadow-sm: 0 1px 2px oklch(20% 0.01 50 / 0.06), 0 1px 1px oklch(20% 0.01 50 / 0.04);
+  --shadow-md: 0 2px 8px oklch(20% 0.01 50 / 0.08), 0 1px 3px oklch(20% 0.01 50 / 0.06);
+  --shadow-lg: 0 6px 20px oklch(20% 0.01 50 / 0.10), 0 2px 6px oklch(20% 0.01 50 / 0.06);
+  --shadow-xl: 0 12px 40px oklch(20% 0.01 50 / 0.12), 0 4px 12px oklch(20% 0.01 50 / 0.08);
+
+  /* Layout */
+  --sidebar-w: 220px;
+  --content-max: 900px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-cn), var(--font-en-body);
+  background-color: var(--paper-bg);
+  color: var(--ink-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+}
+
+/* Paper texture — subtle CSS noise via repeating gradients */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    /* fine grain noise */
+    radial-gradient(circle at 20% 30%, oklch(80% 0.01 70 / 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, oklch(80% 0.01 70 / 0.02) 1px, transparent 1px),
+    /* wide warm stain */
+    radial-gradient(ellipse 600px 400px at 15% 20%, oklch(85% 0.02 70 / 0.15), transparent),
+    radial-gradient(ellipse 500px 300px at 85% 80%, oklch(86% 0.018 60 / 0.12), transparent);
+  background-size: 3px 3px, 5px 5px, 100% 100%, 100% 100%;
+}
+
+/* Lined paper texture for content areas */
+.paper-lines {
+  background-image:
+    linear-gradient(to bottom, transparent calc(100% - 1px), oklch(80% 0.005 60 / 0.15) 100%);
+  background-size: 100% 1.6em;
+  background-position: 0 0.4em;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, textarea {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--accent-pale);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--paper-dark);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+/* ============================================================
+   LAYOUT — App shell
+   ============================================================ */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Desktop Sidebar --- */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--paper-bg-2);
+  border-right: 1px solid oklch(80% 0.01 60 / 0.3);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) var(--space-4);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+/* Notebook spine decoration */
+.sidebar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    oklch(60% 0.03 30 / 0.15) 8%,
+    oklch(60% 0.03 30 / 0.25) 50%,
+    oklch(60% 0.03 30 / 0.15) 92%,
+    transparent 100%);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-10);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px dashed oklch(70% 0.01 55 / 0.3);
+}
+
+.sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 1.5px solid var(--accent-light);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.sidebar-brand-text h1 {
+  font-family: var(--font-en-title);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-primary);
+}
+
+.sidebar-brand-text p {
+  font-size: 0.7rem;
+  color: var(--ink-tertiary);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  font-size: 0.95rem;
+  font-weight: 400;
+  transition: all 120ms var(--ease-out-quart);
+  position: relative;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  background: oklch(92% 0.015 75 / 0.6);
+  color: var(--ink-primary);
+}
+
+.nav-item.active {
+  background: var(--paper-card);
+  color: var(--accent);
+  font-weight: 600;
+  border-color: oklch(80% 0.02 60 / 0.2);
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.nav-item-icon {
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: var(--space-5);
+  border-top: 1px dashed oklch(70% 0.01 55 / 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--ink-tertiary);
+  transition: all 120ms var(--ease-out-quart);
+  border: 1px solid transparent;
+}
+
+.sidebar-btn:hover {
+  background: oklch(92% 0.015 75 / 0.5);
+  color: var(--ink-secondary);
+}
+
+/* --- Main content area --- */
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  padding: var(--space-8) var(--space-6);
+  max-width: var(--content-max);
+  width: 100%;
+  margin: 0 auto;
+  animation: pageEnter 300ms var(--ease-out-quart);
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+  margin-bottom: var(--space-8);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.page-title {
+  font-family: var(--font-en-title);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink-primary);
+}
+
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--ink-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* --- Mobile Bottom Tab --- */
+.mobile-tabbar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--paper-bg-2);
+  border-top: 1px solid oklch(80% 0.01 60 / 0.3);
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-tabbar-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 56px;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3);
+  color: var(--ink-tertiary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: color 120ms var(--ease-out-quart);
+  flex: 1;
+  text-decoration: none;
+  position: relative;
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-item.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.tab-item-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Mobile: show bottom tab, hide sidebar */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .mobile-tabbar { display: block; }
+  .page-content {
+    padding: var(--space-5) var(--space-4);
+    padding-bottom: calc(56px + var(--space-6) + env(safe-area-inset-bottom));
+  }
+  .page-title { font-size: 1.8rem; }
+}
+
+/* ============================================================
+   COMPONENTS — Cards, Buttons, Forms
+   ============================================================ */
+
+/* --- Stamp button (paper/stamp aesthetic) --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 120ms var(--ease-out-quart);
+  border: 1.5px solid transparent;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn-primary {
+  background: var(--accent-pale);
+  border-color: var(--accent-light);
+  color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: oklch(85% 0.04 35);
+  border-color: var(--accent);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: oklch(75% 0.01 55 / 0.3);
+  color: var(--ink-secondary);
+}
+
+.btn-ghost:hover {
+  background: oklch(92% 0.015 75 / 0.5);
+  border-color: var(--ink-faint);
+}
+
+.btn-danger {
+  background: var(--danger-pale);
+  border-color: oklch(70% 0.06 25 / 0.3);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: oklch(85% 0.05 25);
+  border-color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Paper card (flash card visual) --- */
+.paper-card {
+  background: var(--paper-card);
+  border: 1px solid oklch(82% 0.01 60 / 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  transition: box-shadow 200ms var(--ease-out-quart), transform 200ms var(--ease-out-quart);
+}
+
+/* Corner fold effect */
+.paper-card-fold::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 18px 18px;
+  border-color: transparent transparent oklch(88% 0.015 65) transparent;
+  border-radius: 0 0 var(--radius-md) 0;
+  filter: drop-shadow(-1px -1px 1px oklch(20% 0.01 50 / 0.06));
+}
+
+/* --- Input fields --- */
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-2);
+  font-family: var(--font-en-body);
+  letter-spacing: 0.02em;
+}
+
+.field-input, .field-textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid oklch(78% 0.01 58 / 0.35);
+  border-radius: var(--radius-sm);
+  background: var(--paper-card);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink-primary);
+  transition: border-color 120ms var(--ease-out-quart), box-shadow 120ms var(--ease-out-quart);
+}
+
+.field-input:focus, .field-textarea:focus {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 3px var(--accent-pale);
+}
+
+.field-textarea {
+  min-height: 80px;
+  font-family: var(--font-cn), var(--font-en-body);
+}
+
+/* --- Mastery group chips --- */
+.mastery-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: all 120ms var(--ease-out-quart);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mastery-chip[data-group="learning"] {
+  background: var(--mastery-learn-bg);
+  border-color: oklch(70% 0.05 40 / 0.3);
+  color: var(--mastery-learn);
+}
+
+.mastery-chip[data-group="familiar"] {
+  background: var(--mastery-familiar-bg);
+  border-color: oklch(70% 0.04 60 / 0.3);
+  color: var(--mastery-familiar);
+}
+
+.mastery-chip[data-group="mastered"] {
+  background: var(--mastery-master-bg);
+  border-color: oklch(70% 0.05 145 / 0.3);
+  color: var(--mastery-master);
+}
+
+.mastery-chip:hover {
+  filter: brightness(0.96);
+}
+
+.mastery-chip.inactive {
+  opacity: 0.4;
+  background: var(--paper-bg-2);
+  border-color: oklch(78% 0.01 58 / 0.25);
+  color: var(--ink-faint);
+}
+
+.mastery-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mastery-chip[data-group="learning"] .mastery-chip-dot { background: var(--mastery-learn); }
+.mastery-chip[data-group="familiar"] .mastery-chip-dot { background: var(--mastery-familiar); }
+.mastery-chip[data-group="mastered"] .mastery-chip-dot { background: var(--mastery-master); }
+.mastery-chip.inactive .mastery-chip-dot { background: var(--ink-faint); }
+
+/* --- Recording button --- */
+.record-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--danger);
+  border: 3px solid oklch(60% 0.1 25 / 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 120ms var(--ease-out-quart);
+  position: relative;
+}
+
+.record-btn:hover {
+  background: oklch(48% 0.14 25);
+  box-shadow: 0 0 0 6px var(--danger-pale);
+}
+
+.record-btn:active {
+  transform: scale(0.92);
+}
+
+.record-btn.recording {
+  background: oklch(55% 0.16 25);
+  animation: recordPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--danger-pale); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.record-btn-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+}
+
+.record-btn.recording .record-btn-icon {
+  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Audio player bar */
+.audio-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--paper-dark);
+  border-radius: 20px;
+  border: 1px solid oklch(78% 0.012 58 / 0.3);
+  margin-top: var(--space-2);
+}
+
+.audio-bar-play {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 100ms var(--ease-out-quart);
+}
+
+.audio-bar-play:hover {
+  background: oklch(42% 0.08 30);
+}
+
+.audio-bar-play svg {
+  width: 12px;
+  height: 12px;
+  fill: white;
+}
+
+.audio-bar-time {
+  font-size: 0.75rem;
+  color: var(--ink-tertiary);
+  font-variant-numeric: tabular-nums;
+  min-width: 35px;
+}
+
+.audio-bar-remove {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  transition: color 100ms;
+}
+
+.audio-bar-remove:hover { color: var(--danger); }
+
+/* ============================================================
+   REVIEW PAGE
+   ============================================================ */
+.review-card-container {
+  perspective: 1200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 400px;
+}
+
+.review-card {
+  width: 100%;
+  max-width: 500px;
+  min-height: 280px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 400ms var(--ease-out-quart);
+  cursor: pointer;
+}
+
+.review-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.review-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-6);
+  background: var(--paper-card);
+  border: 1px solid oklch(82% 0.01 60 / 0.25);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  backface-visibility: hidden;
+}
+
+.review-card-back {
+  transform: rotateY(180deg);
+  background: var(--paper-card-2);
+}
+
+.review-card-label {
+  font-family: var(--font-en-title);
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-4);
+}
+
+.review-card-text {
+  font-size: 1.3rem;
+  line-height: 1.6;
+  text-align: center;
+  word-break: break-word;
+  color: var(--ink-primary);
+  max-width: 100%;
+}
+
+.review-card-audio {
+  margin-top: var(--space-4);
+}
+
+.review-card-stage-badge {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  font-size: 0.7rem;
+  padding: 2px var(--space-2);
+  border-radius: 10px;
+  font-weight: 600;
+  font-family: var(--font-en-body);
+}
+
+/* Swipe hint */
+.review-card-hint {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  text-align: center;
+  display: flex;
+  gap: var(--space-6);
+  justify-content: center;
+}
+
+.review-card-hint span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Swipe animations */
+.review-card.swipe-left {
+  animation: swipeLeft 300ms var(--ease-out-quart) forwards;
+}
+.review-card.swipe-right {
+  animation: swipeRight 300ms var(--ease-out-quart) forwards;
+}
+
+@keyframes swipeLeft {
+  to { transform: translateX(-120%) rotate(-15deg); opacity: 0; }
+}
+@keyframes swipeRight {
+  to { transform: translateX(120%) rotate(15deg); opacity: 0; }
+}
+
+/* Swipe overlay indicators */
+.swipe-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1.1rem;
+  opacity: 0;
+  transition: opacity 80ms;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.swipe-indicator-left {
+  left: var(--space-3);
+  background: var(--success-pale);
+  color: var(--success);
+  border: 2px solid var(--success);
+}
+
+.swipe-indicator-right {
+  right: var(--space-3);
+  background: var(--danger-pale);
+  color: var(--danger);
+  border: 2px solid var(--danger);
+}
+
+/* Empty review state */
+.review-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-6);
+  text-align: center;
+}
+
+.review-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-4);
+  opacity: 0.5;
+}
+
+.review-empty-title {
+  font-family: var(--font-en-title);
+  font-size: 1.8rem;
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.review-empty-text {
+  font-size: 0.9rem;
+  color: var(--ink-tertiary);
+  max-width: 300px;
+}
+
+/* Review complete celebration */
+.review-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.review-complete-stamp {
+  font-family: var(--font-en-title);
+  font-size: 1.5rem;
+  color: var(--accent);
+  border: 3px double var(--accent);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-md);
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
+
+.review-complete-stats {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+}
+
+.review-complete-stat {
+  text-align: center;
+}
+
+.review-complete-stat-num {
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: var(--font-en-body);
+  color: var(--ink-primary);
+}
+
+.review-complete-stat-label {
+  font-size: 0.75rem;
+  color: var(--ink-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* Group filter bar */
+.group-filter-bar {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.group-filter-label {
+  font-size: 0.8rem;
+  color: var(--ink-tertiary);
+  font-weight: 600;
+  margin-right: var(--space-1);
+}
+
+/* Review progress */
+.review-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  font-size: 0.85rem;
+  color: var(--ink-tertiary);
+}
+
+.review-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--paper-dark);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.review-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 300ms var(--ease-out-quart);
+}
+
+/* ============================================================
+   CREATE PAGE
+   ============================================================ */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 600px;
+}
+
+.create-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.audio-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--paper-bg-2);
+  border-radius: var(--radius-md);
+  border: 1px dashed oklch(75% 0.01 58 / 0.3);
+}
+
+.audio-section-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.audio-section-label span:first-child {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.audio-section-label span:last-child {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+.create-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+/* Card list */
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.card-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-3);
+}
+
+.card-list-header h3 {
+  font-family: var(--font-en-body);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.card-list-count {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper-card);
+  border: 1px solid oklch(82% 0.01 60 / 0.2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  transition: all 120ms var(--ease-out-quart);
+}
+
+.card-list-item:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.card-list-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-list-item-front {
+  font-size: 0.95rem;
+  color: var(--ink-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-list-item-back {
+  font-size: 0.78rem;
+  color: var(--ink-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.card-list-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.card-list-item-audio {
+  font-size: 0.9rem;
+  color: var(--ink-faint);
+}
+
+.card-list-item-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  transition: all 100ms var(--ease-out-quart);
+}
+
+.icon-btn:hover {
+  background: oklch(90% 0.012 60);
+  color: var(--ink-secondary);
+}
+
+/* Create empty state */
+.create-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-6);
+  text-align: center;
+}
+
+.create-empty-card {
+  width: 200px;
+  height: 120px;
+  border: 2px dashed oklch(70% 0.01 55 / 0.35);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-en-title);
+  font-size: 1.3rem;
+  color: var(--ink-faint);
+  background: oklch(95% 0.008 80 / 0.5);
+  margin-bottom: var(--space-6);
+  position: relative;
+}
+
+.create-empty-card::after {
+  content: "←";
+  position: absolute;
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2rem;
+  color: var(--ink-faint);
+  animation: nudge 2s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(-8px); }
+}
+
+/* ============================================================
+   GROWTH PAGE
+   ============================================================ */
+.growth-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.growth-stat-card {
+  padding: var(--space-5);
+  background: var(--paper-card);
+  border: 1px solid oklch(82% 0.01 60 / 0.2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.growth-stat-icon {
+  font-size: 1.4rem;
+  margin-bottom: var(--space-2);
+  opacity: 0.7;
+}
+
+.growth-stat-num {
+  font-size: 2.2rem;
+  font-weight: 700;
+  font-family: var(--font-en-body);
+  color: var(--ink-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.growth-stat-unit {
+  font-size: 0.9rem;
+  color: var(--ink-tertiary);
+  margin-left: 4px;
+}
+
+.growth-stat-label {
+  font-size: 0.78rem;
+  color: var(--ink-tertiary);
+  margin-top: var(--space-2);
+  letter-spacing: 0.02em;
+}
+
+/* Heatmap */
+.heatmap-container {
+  margin-bottom: var(--space-8);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.heatmap-header h3 {
+  font-family: var(--font-en-body);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.72rem;
+  color: var(--ink-tertiary);
+}
+
+.heatmap-legend-cells {
+  display: flex;
+  gap: 2px;
+}
+
+.heatmap-legend-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.heatmap-grid {
+  display: flex;
+  gap: 3px;
+  min-width: fit-content;
+}
+
+.heatmap-day-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: space-around;
+  margin-right: var(--space-2);
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  padding-top: 18px;
+}
+
+.heatmap-day-label {
+  height: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.heatmap-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: oklch(88% 0.008 70 / 0.4);
+  border: 1px solid oklch(85% 0.005 70 / 0.2);
+  transition: transform 100ms var(--ease-out-quart);
+  cursor: pointer;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.4);
+  z-index: 5;
+}
+
+.heatmap-cell[data-level="1"] { background: oklch(82% 0.04 40 / 0.6); }
+.heatmap-cell[data-level="2"] { background: oklch(70% 0.06 40 / 0.7); }
+.heatmap-cell[data-level="3"] { background: oklch(58% 0.08 35 / 0.8); }
+.heatmap-cell[data-level="4"] { background: oklch(48% 0.1 30); }
+
+.heatmap-month-labels {
+  display: flex;
+  gap: 3px;
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  margin-top: var(--space-1);
+  margin-left: 22px;
+}
+
+.heatmap-month-label {
+  min-width: 48px;
+}
+
+/* Today summary */
+.today-summary {
+  background: var(--paper-card);
+  border: 1px solid oklch(82% 0.01 60 / 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-8);
+}
+
+.today-summary h3 {
+  font-family: var(--font-en-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.today-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--space-4);
+}
+
+.today-summary-item {
+  text-align: center;
+}
+
+.today-summary-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: var(--font-en-body);
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.today-summary-label {
+  font-size: 0.72rem;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+@media (min-width: 769px) {
+  .toast-container { bottom: var(--space-6); }
+}
+
+.toast {
+  padding: var(--space-3) var(--space-5);
+  background: var(--ink-primary);
+  color: var(--paper-card);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(10px);
+  animation: toastIn 200ms var(--ease-out-quart) forwards;
+  max-width: 340px;
+  pointer-events: auto;
+}
+
+.toast.removing {
+  animation: toastOut 150ms var(--ease-out-quart) forwards;
+}
+
+@keyframes toastIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(10px); }
+}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: oklch(20% 0.01 50 / 0.35);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  opacity: 0;
+  animation: overlayIn 200ms var(--ease-out-quart) forwards;
+}
+
+@keyframes overlayIn {
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--paper-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow-xl);
+  transform: translateY(20px);
+  animation: modalIn 300ms var(--ease-out-quart) forwards;
+}
+
+@keyframes modalIn {
+  to { transform: translateY(0); }
+}
+
+.modal-title {
+  font-family: var(--font-en-title);
+  font-size: 1.5rem;
+  color: var(--ink-primary);
+  margin-bottom: var(--space-2);
+}
+
+.modal-text {
+  font-size: 0.9rem;
+  color: var(--ink-secondary);
+  margin-bottom: var(--space-5);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .review-card { transition: transform 100ms; }
+  .review-card.flipped { transform: rotateY(180deg); }
+  .review-card.swipe-left, .review-card.swipe-right {
+    animation: none;
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.flex { display: flex; }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon" data-icon="layers"></div>
+      <div class="sidebar-brand-text">
+        <h1>纸卡</h1>
+        <p>Flash Card Workbench</p>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-page="review">
+        <span class="nav-item-icon">eye</span>
+        <span>复习</span>
+      </a>
+      <a class="nav-item" data-page="create">
+        <span class="nav-item-icon">plus</span>
+        <span>创建</span>
+      </a>
+      <a class="nav-item" data-page="growth">
+        <span class="nav-item-icon">chart</span>
+        <span>成长</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-btn" id="btn-export">
+        <span>export</span>
+        <span>导出数据</span>
+      </button>
+      <button class="sidebar-btn" id="btn-import">
+        <span>import</span>
+        <span>导入数据</span>
+      </button>
+      <input type="file" id="import-file" accept=".json" class="hidden">
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-area">
+    <div class="page-content" id="page-content">
+      <!-- Dynamic content injected here -->
+    </div>
+  </main>
+
+  <!-- Mobile Bottom Tab -->
+  <nav class="mobile-tabbar">
+    <div class="mobile-tabbar-inner">
+      <a class="tab-item active" data-page="review">
+        <span class="tab-item-icon">eye</span>
+        <span>复习</span>
+      </a>
+      <a class="tab-item" data-page="create">
+        <span class="tab-item-icon">plus</span>
+        <span>创建</span>
+      </a>
+      <a class="tab-item" data-page="growth">
+        <span class="tab-item-icon">chart</span>
+        <span>成长</span>
+      </a>
+    </div>
+  </nav>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/* ============================================================
+   ICON SYSTEM — inline SVG
+   ============================================================ */
+const ICONS = {
+  eye:        '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  plus:       '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  chart:      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  export:     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  import:     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+  play:       '<svg viewBox="0 0 24 24" width="12" height="12" fill="white"><polygon points="5,3 19,12 5,21"/></svg>',
+  pause:      '<svg viewBox="0 0 24 24" width="12" height="12" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></rect></svg>',
+  trash:      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  edit:       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  mic:        '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
+  check:      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  x:          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  flame:      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  calendar:   '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  layers:     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  volume:     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+};
+
+function icon(name) {
+  return ICONS[name] || '';
+}
+
+/* Replace all nav icons with SVG */
+function injectIcons() {
+  // Nav item icons
+  document.querySelectorAll('.nav-item-icon').forEach(el => {
+    const name = el.textContent.trim();
+    if (ICONS[name]) {
+      el.innerHTML = icon(name);
+    }
+  });
+  // Tab item icons
+  document.querySelectorAll('.tab-item-icon').forEach(el => {
+    const name = el.textContent.trim();
+    if (ICONS[name]) {
+      el.innerHTML = icon(name);
+    }
+  });
+  // Sidebar footer buttons
+  document.querySelectorAll('.sidebar-btn span:first-child').forEach(el => {
+    const name = el.textContent.trim();
+    if (ICONS[name]) {
+      el.innerHTML = icon(name);
+    }
+  });
+  // Brand icon
+  const brandIcon = document.querySelector('[data-icon="layers"]');
+  if (brandIcon) {
+    brandIcon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+  }
+}
+
+/* ============================================================
+   DATA LAYER — IndexedDB
+   ============================================================ */
+const DB_NAME = 'flashcard-workbench';
+const DB_VERSION = 1;
+const STORE_CARDS = 'cards';
+const STORE_AUDIO = 'audio';
+const STORE_STATS = 'stats';
+
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE_CARDS)) {
+        d.createObjectStore(STORE_CARDS, { keyPath: 'id' });
+      }
+      if (!d.objectStoreNames.contains(STORE_AUDIO)) {
+        d.createObjectStore(STORE_AUDIO);
+      }
+      if (!d.objectStoreNames.contains(STORE_STATS)) {
+        d.createObjectStore(STORE_STATS, { keyPath: 'key' });
+      }
+    };
+  });
+}
+
+function tx(store, mode = 'readonly') {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const r = tx(store).getAll();
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    const r = tx(store).get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function dbPut(store, value, key) {
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(store, 'readwrite');
+    const r = key !== undefined ? t.objectStore(store).put(value, key) : t.objectStore(store).put(value);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    const r = tx(store, 'readwrite').delete(key);
+    r.onsuccess = () => resolve();
+    r.onerror = () => reject(r.error);
+  });
+}
+
+/* ============================================================
+   CARD MODEL & SRS LOGIC
+   ============================================================ */
+const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30, 90, 180]; // days
+const GROUP_LEARNING  = 'learning';
+const GROUP_FAMILIAR = 'familiar';
+const GROUP_MASTERED = 'mastered';
+
+function makeCard(front, back, audioId) {
+  const now = Date.now();
+  const today = startOfDay(now);
+  return {
+    id: 'c_' + now + '_' + Math.random().toString(36).slice(2, 8),
+    front: front,
+    back: back,
+    audioId: audioId || null,
+    createdAt: now,
+    stage: 0,           // index into EBBINGHAUS_INTERVALS
+    lastReview: null,
+    nextReview: today,  // due immediately
+    rememberCount: 0,
+    forgetCount: 0,
+    reviewHistory: [],  // array of { date, result: 'remember'|'forget' }
+  };
+}
+
+function startOfDay(ts) {
+  if (ts === null || ts === undefined) return null;
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function todayStart() {
+  return startOfDay(Date.now());
+}
+
+function addDays(ts, days) {
+  return ts + days * 86400000;
+}
+
+function getCardGroup(card) {
+  if (card.stage <= 1) return GROUP_LEARNING;
+  if (card.stage <= 3) return GROUP_FAMILIAR;
+  return GROUP_MASTERED;
+}
+
+function getGroupName(group) {
+  return { learning: '学习组', familiar: '熟悉组', mastered: '掌握组' }[group];
+}
+
+function getGroupColor(group) {
+  return {
+    learning: 'var(--mastery-learn)',
+    familiar: 'var(--mastery-familiar)',
+    mastered: 'var(--mastery-master)'
+  }[group];
+}
+
+function isCardDue(card) {
+  return card.nextReview !== null && card.nextReview <= todayStart();
+}
+
+function reviewCard(card, result) {
+  const today = todayStart();
+  if (result === 'remember') {
+    card.rememberCount++;
+    card.stage = Math.min(card.stage + 1, EBBINGHAUS_INTERVALS.length - 1);
+  } else {
+    card.forgetCount++;
+    card.stage = 0; // reset to beginning
+  }
+  card.lastReview = today;
+  card.nextReview = addDays(today, EBBINGHAUS_INTERVALS[card.stage]);
+  card.reviewHistory.push({ date: today, result: result });
+  return card;
+}
+
+/* ============================================================
+   STATS / GROWTH DATA
+   ============================================================ */
+async function getReviewLog() {
+  const rec = await dbGet(STORE_STATS, 'reviewLog');
+  return rec ? rec.value : {};  // { 'YYYY-MM-DD': count }
+}
+
+async function saveReviewLog(log) {
+  await dbPut(STORE_STATS, { key: 'reviewLog', value: log });
+}
+
+async function recordReviewDay() {
+  const log = await getReviewLog();
+  const todayKey = formatDateKey(todayStart());
+  log[todayKey] = (log[todayKey] || 0) + 1;
+  await saveReviewLog(log);
+}
+
+function formatDateKey(ts) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function calculateStreak(log) {
+  const today = todayStart();
+  let streak = 0;
+  let cursor = today;
+  // If today has no reviews yet, start from yesterday
+  if (!log[formatDateKey(today)]) {
+    cursor = today - 86400000;
+  }
+  while (log[formatDateKey(cursor)]) {
+    streak++;
+    cursor -= 86400000;
+  }
+  return streak;
+}
+
+function calculateLongestStreak(log) {
+  const dates = Object.keys(log).sort();
+  if (dates.length === 0) return 0;
+  let longest = 1;
+  let current = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i - 1]);
+    const curr = new Date(dates[i]);
+    const diff = Math.round((curr - prev) / 86400000);
+    if (diff === 1) {
+      current++;
+      longest = Math.max(longest, current);
+    } else {
+      current = 1;
+    }
+  }
+  return longest;
+}
+
+function calculateYearActiveDays(log) {
+  const yearAgo = todayStart() - 365 * 86400000;
+  let count = 0;
+  for (const key in log) {
+    const ts = new Date(key).getTime();
+    if (ts >= yearAgo && log[key] > 0) count++;
+  }
+  return count;
+}
+
+function getHeatmapData(log) {
+  const today = todayStart();
+  const data = [];
+  // Start from 364 days ago, aligned to week (Sunday = 0)
+  const start = today - 364 * 86400000;
+  const startDay = new Date(start).getDay(); // 0=Sun
+
+  // Align to start of week
+  const firstDate = start - startDay * 86400000;
+  let date = firstDate;
+  while (date <= today) {
+    const key = formatDateKey(date);
+    const count = log[key] || 0;
+    let level = 0;
+    if (count >= 1 && count <= 2) level = 1;
+    else if (count >= 3 && count <= 5) level = 2;
+    else if (count >= 6 && count <= 10) level = 3;
+    else if (count > 10) level = 4;
+    data.push({ date, count, level });
+    date += 86400000;
+  }
+  return data;
+}
+
+/* ============================================================
+   AUDIO — Recording & Playback
+   ============================================================ */
+let mediaRecorder = null;
+let audioChunks = [];
+let currentAudioBlob = null;
+let currentAudioUrl = null;
+let audioContext = null;
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = URL.createObjectURL(currentAudioBlob);
+      stream.getTracks().forEach(t => t.stop());
+      onRecordingComplete();
+    };
+
+    mediaRecorder.start();
+    return true;
+  } catch (err) {
+    showToast('麦克风访问失败：' + err.message);
+    return false;
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+
+function playAudioUrl(url, button) {
+  const audio = new Audio(url);
+  button.innerHTML = icon('pause');
+  audio.play();
+  audio.onended = () => {
+    button.innerHTML = icon('play');
+  };
+  audio.onerror = () => {
+    button.innerHTML = icon('play');
+    showToast('音频播放失败');
+  };
+}
+
+async function playAudioById(audioId, button) {
+  const blob = await dbGet(STORE_AUDIO, audioId);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  playAudioUrl(url, button);
+  // Revoke after playback
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ============================================================
+   APP STATE & ROUTING
+   ============================================================ */
+let currentPage = 'review';
+let reviewQueue = [];
+let reviewIndex = 0;
+let reviewGroups = { learning: true, familiar: true, mastered: true };
+let createAudioBlob = null;
+let editingCardId = null;
+
+async function navigate(page) {
+  currentPage = page;
+  // Update nav active states
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  document.querySelectorAll('.tab-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+
+  const container = document.getElementById('page-content');
+  container.innerHTML = '';
+
+  if (page === 'review') {
+    await renderReviewPage(container);
+  } else if (page === 'create') {
+    await renderCreatePage(container);
+  } else if (page === 'growth') {
+    await renderGrowthPage(container);
+  }
+}
+
+/* ============================================================
+   REVIEW PAGE
+   ============================================================ */
+async function renderReviewPage(container) {
+  const allCards = await dbGetAll(STORE_CARDS);
+  const dueCards = allCards.filter(c => isCardDue(c));
+
+  // Count by group
+  const groupCounts = {
+    learning: 0, familiar: 0, mastered: 0
+  };
+  dueCards.forEach(c => { groupCounts[getCardGroup(c)]++; });
+
+  // Filter by selected groups
+  reviewQueue = dueCards.filter(c => reviewGroups[getCardGroup(c)]);
+  reviewIndex = 0;
+
+  // Header
+  container.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">复习</h2>
+        <p class="page-subtitle">${dueCards.length > 0 ? '今天有 ' + dueCards.length + ' 张卡片到期' : '今日复习已完成'}</p>
+      </div>
+    </div>
+  `;
+
+  if (dueCards.length === 0) {
+    container.innerHTML += `
+      <div class="review-empty">
+        <div class="review-empty-icon">leaf</div>
+        <h3 class="review-empty-title">今天的卡片都翻完了</h3>
+        <p class="review-empty-text">休息一下吧，明天会有新的卡片到期</p>
+      </div>
+    `;
+    // Replace icon
+    const iconEl = container.querySelector('.review-empty-icon');
+    iconEl.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>';
+    return;
+  }
+
+  // Group filter
+  const filterBar = document.createElement('div');
+  filterBar.className = 'group-filter-bar';
+  filterBar.innerHTML = `<span class="group-filter-label">筛选:</span>`;
+
+  for (const [key, label] of [['learning','学习组'],['familiar','熟悉组'],['mastered','掌握组']]) {
+    const chip = document.createElement('div');
+    chip.className = 'mastery-chip' + (reviewGroups[key] ? '' : ' inactive');
+    chip.dataset.group = key;
+    chip.innerHTML = `
+      <span class="mastery-chip-dot"></span>
+      <span>${label}</span>
+      <span style="opacity:0.6">${groupCounts[key]}</span>
+    `;
+    chip.onclick = () => {
+      reviewGroups[key] = !reviewGroups[key];
+      navigate('review');
+    };
+    filterBar.appendChild(chip);
+  }
+  container.appendChild(filterBar);
+
+  if (reviewQueue.length === 0) {
+    container.innerHTML += `
+      <div class="review-empty">
+        <div class="review-empty-icon" style="font-size:2rem">dash</div>
+        <h3 class="review-empty-title">所选组没有到期卡片</h3>
+        <p class="review-empty-text">尝试启用其他分组</p>
+      </div>
+    `;
+    const iconEl = container.querySelector('.review-empty-icon');
+    iconEl.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    return;
+  }
+
+  // Progress bar
+  const progressDiv = document.createElement('div');
+  progressDiv.className = 'review-progress';
+  progressDiv.innerHTML = `
+    <span id="review-progress-text">1 / ${reviewQueue.length}</span>
+    <div class="review-progress-bar"><div class="review-progress-fill" id="review-progress-fill" style="width: 0%"></div></div>
+  `;
+  container.appendChild(progressDiv);
+
+  // Card area
+  const cardArea = document.createElement('div');
+  cardArea.className = 'review-card-container';
+  cardArea.id = 'review-card-area';
+  container.appendChild(cardArea);
+
+  // Swipe hints
+  const hintDiv = document.createElement('div');
+  hintDiv.className = 'review-card-hint';
+  hintDiv.innerHTML = `
+    <span>${icon('check')} 左滑 = 记得</span>
+    <span>${icon('x')} 右滑 = 不记得</span>
+    <span style="opacity:0.5">点击 = 翻面</span>
+  `;
+  container.appendChild(hintDiv);
+
+  showReviewCard();
+}
+
+async function showReviewCard() {
+  const cardArea = document.getElementById('review-card-area');
+  if (!cardArea) return;
+
+  if (reviewIndex >= reviewQueue.length) {
+    showReviewComplete();
+    return;
+  }
+
+  const card = reviewQueue[reviewIndex];
+  const group = getCardGroup(card);
+  const groupColor = getGroupColor(group);
+  const interval = EBBINGHAUS_INTERVALS[card.stage];
+
+  // Reset cardArea
+  cardArea.innerHTML = `
+    <div class="review-card" id="review-card">
+      <div class="swipe-indicator swipe-indicator-left">记得</div>
+      <div class="swipe-indicator swipe-indicator-right">不记得</div>
+      <div class="review-card-face review-card-front paper-card-fold">
+        <span class="review-card-stage-badge" style="background:var(--paper-bg-2);color:${groupColor};border:1px solid ${groupColor}33">
+          ${getGroupName(group)} · ${interval}天
+        </span>
+        <div class="review-card-label">正面</div>
+        <div class="review-card-text">${escapeHtml(card.front)}</div>
+        ${card.audioId ? `<div class="review-card-audio"><button class="audio-bar-play" data-audio="${card.audioId}">${icon('play')}</button></div>` : ''}
+      </div>
+      <div class="review-card-face review-card-back">
+        <span class="review-card-stage-badge" style="background:var(--paper-bg-2);color:${groupColor};border:1px solid ${groupColor}33">
+          ${getGroupName(group)} · ${interval}天
+        </span>
+        <div class="review-card-label">反面</div>
+        <div class="review-card-text">${escapeHtml(card.back)}</div>
+        ${card.audioId ? `<div class="review-card-audio"><button class="audio-bar-play" data-audio="${card.audioId}">${icon('play')}</button></div>` : ''}
+      </div>
+    </div>
+  `;
+
+  // Update progress
+  const progressText = document.getElementById('review-progress-text');
+  const progressFill = document.getElementById('review-progress-fill');
+  if (progressText) progressText.textContent = `${reviewIndex + 1} / ${reviewQueue.length}`;
+  if (progressFill) progressFill.style.width = `${(reviewIndex / reviewQueue.length) * 100}%`;
+
+  // Audio buttons
+  cardArea.querySelectorAll('[data-audio]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const audioId = btn.dataset.audio;
+      playAudioById(audioId, btn);
+    };
+  });
+
+  // Card flip + swipe
+  const reviewCard = document.getElementById('review-card');
+  let isFlipped = false;
+  let startX = 0, startY = 0, isDragging = false;
+  let currentX = 0;
+
+  reviewCard.addEventListener('click', (e) => {
+    if (e.target.closest('[data-audio]')) return;
+    if (isDragging) return;
+    isFlipped = !isFlipped;
+    reviewCard.classList.toggle('flipped');
+  });
+
+  // Touch / mouse swipe
+  function onStart(e) {
+    if (e.target.closest('[data-audio]')) return;
+    isDragging = true;
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    currentX = 0;
+    reviewCard.style.transition = 'none';
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    currentX = clientX - startX;
+    const deltaY = Math.abs((e.touches ? e.touches[0].clientY : e.clientY) - startY);
+
+    // Only horizontal swipe
+    if (deltaY > 50) return;
+
+    const rotate = (currentX / 300) * 15;
+    reviewCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+    // Show indicators
+    const leftInd = cardArea.querySelector('.swipe-indicator-left');
+    const rightInd = cardArea.querySelector('.swipe-indicator-right');
+    if (currentX < -40) {
+      leftInd.style.opacity = Math.min(1, Math.abs(currentX) / 100);
+      rightInd.style.opacity = 0;
+    } else if (currentX > 40) {
+      rightInd.style.opacity = Math.min(1, currentX / 100);
+      leftInd.style.opacity = 0;
+    } else {
+      leftInd.style.opacity = 0;
+      rightInd.style.opacity = 0;
+    }
+
+    if (e.cancelable) e.preventDefault();
+  }
+
+  function onEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    reviewCard.style.transition = '';
+    reviewCard.style.transform = '';
+
+    const leftInd = cardArea.querySelector('.swipe-indicator-left');
+    const rightInd = cardArea.querySelector('.swipe-indicator-right');
+    if (leftInd) leftInd.style.opacity = 0;
+    if (rightInd) rightInd.style.opacity = 0;
+
+    if (currentX < -80) {
+      // Swipe left = remember
+      handleReviewResult('remember');
+    } else if (currentX > 80) {
+      // Swipe right = forget
+      handleReviewResult('forget');
+    }
+  }
+
+  reviewCard.addEventListener('touchstart', onStart, { passive: false });
+  reviewCard.addEventListener('touchmove', onMove, { passive: false });
+  reviewCard.addEventListener('touchend', onEnd);
+  reviewCard.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onEnd);
+}
+
+async function handleReviewResult(result) {
+  const card = reviewQueue[reviewIndex];
+  const updated = reviewCard(card, result);
+  await dbPut(STORE_CARDS, updated);
+
+  // Record activity
+  try {
+    const log = await getReviewLog();
+    const todayKey = formatDateKey(todayStart());
+    log[todayKey] = (log[todayKey] || 0) + 1;
+    await saveReviewLog(log);
+    console.log('[Activity] Recorded review for', todayKey, 'count:', log[todayKey]);
+  } catch (e) {
+    console.error('[Activity] Failed to record review:', e);
+  }
+
+  // Animate card out
+  const reviewCard = document.getElementById('review-card');
+  if (reviewCard) {
+    reviewCard.classList.add(result === 'remember' ? 'swipe-left' : 'swipe-right');
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  reviewIndex++;
+  showReviewCard();
+}
+
+function showReviewComplete() {
+  const cardArea = document.getElementById('review-card-area');
+  const hintDiv = document.querySelector('.review-card-hint');
+  const progressDiv = document.querySelector('.review-progress');
+  if (hintDiv) hintDiv.remove();
+  if (progressDiv) progressDiv.remove();
+
+  // Calculate today's stats from reviewQueue
+  let remembered = 0;
+  let forgotten = 0;
+  reviewQueue.forEach(c => {
+    if (c.reviewHistory.length > 0) {
+      const last = c.reviewHistory[c.reviewHistory.length - 1];
+      if (last.result === 'remember') remembered++;
+      else forgotten++;
+    }
+  });
+
+  cardArea.innerHTML = `
+    <div class="review-complete">
+      <div class="review-complete-stamp">今日完成</div>
+      <h3 class="review-empty-title" style="margin-top:var(--space-4)">今天的复习完成了</h3>
+      <div class="review-complete-stats">
+        <div class="review-complete-stat">
+          <div class="review-complete-stat-num">${reviewQueue.length}</div>
+          <div class="review-complete-stat-label">总复习</div>
+        </div>
+        <div class="review-complete-stat">
+          <div class="review-complete-stat-num" style="color:var(--success)">${remembered}</div>
+          <div class="review-complete-stat-label">记得</div>
+        </div>
+        <div class="review-complete-stat">
+          <div class="review-complete-stat-num" style="color:var(--danger)">${forgotten}</div>
+          <div class="review-complete-stat-label">不记得</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   CREATE PAGE
+   ============================================================ */
+async function renderCreatePage(container) {
+  const allCards = await dbGetAll(STORE_CARDS);
+  allCards.sort((a, b) => b.createdAt - a.createdAt);
+
+  container.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">创建</h2>
+        <p class="page-subtitle">制作一张新的 flash card</p>
+      </div>
+    </div>
+  `;
+
+  // If no cards, show empty state
+  if (allCards.length === 0) {
+    container.innerHTML += `
+      <div class="create-empty">
+        <div class="create-empty-card">创建卡片</div>
+        <p style="font-size:0.85rem;color:var(--ink-tertiary);max-width:280px">
+          在下方填写正面和反面内容，可选录音，然后保存
+        </p>
+      </div>
+      <div style="margin-top:var(--space-8)"></div>
+    `;
+  }
+
+  // Create form
+  const formDiv = document.createElement('div');
+  formDiv.className = 'create-form';
+  formDiv.innerHTML = `
+    <div class="create-section">
+      <label class="field-label">正面内容</label>
+      <textarea class="field-textarea" id="create-front" placeholder="输入正面内容（如问题、单词等）" rows="3"></textarea>
+    </div>
+    <div class="create-section">
+      <label class="field-label">反面内容</label>
+      <textarea class="field-textarea" id="create-back" placeholder="输入反面内容（如答案、释义等）" rows="3"></textarea>
+    </div>
+    <div class="create-section">
+      <div class="audio-section">
+        <div class="record-btn" id="record-btn">
+          <div class="record-btn-icon"></div>
+        </div>
+        <div class="audio-section-label">
+          <span>录音（可选）</span>
+          <span id="record-status">点击录音按钮开始</span>
+        </div>
+        <div id="record-preview"></div>
+      </div>
+    </div>
+    <div class="create-actions">
+      <button class="btn btn-primary" id="btn-save-card">${icon('check')} 保存卡片</button>
+      <button class="btn btn-ghost" id="btn-clear">清空</button>
+    </div>
+  `;
+  container.appendChild(formDiv);
+
+  // Record button
+  let isRecording = false;
+  const recordBtn = document.getElementById('record-btn');
+  const recordStatus = document.getElementById('record-status');
+  const recordPreview = document.getElementById('record-preview');
+
+  recordBtn.onclick = async () => {
+    if (!isRecording) {
+      const ok = await startRecording();
+      if (ok) {
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        recordStatus.textContent = '录音中... 再次点击停止';
+      }
+    } else {
+      stopRecording();
+      isRecording = false;
+      recordBtn.classList.remove('recording');
+      recordStatus.textContent = '录音完成';
+    }
+  };
+
+  // Save button
+  const saveBtn = document.getElementById('btn-save-card');
+  saveBtn.onclick = async () => {
+    const front = document.getElementById('create-front').value.trim();
+    const back = document.getElementById('create-back').value.trim();
+    if (!front || !back) {
+      showToast('请填写正面和反面内容');
+      return;
+    }
+
+    let audioId = null;
+    if (currentAudioBlob) {
+      audioId = 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      await dbPut(STORE_AUDIO, currentAudioBlob, audioId);
+    }
+
+    const card = makeCard(front, back, audioId);
+    await dbPut(STORE_CARDS, card);
+
+    // Record activity day (创建也算活动)
+    try {
+      const log = await getReviewLog();
+      const todayKey = formatDateKey(todayStart());
+      log[todayKey] = (log[todayKey] || 0) + 1;
+      await saveReviewLog(log);
+      console.log('[Activity] Recorded for', todayKey, 'count:', log[todayKey]);
+    } catch (e) {
+      console.error('[Activity] Failed to record:', e);
+    }
+
+    // Reset form
+    document.getElementById('create-front').value = '';
+    document.getElementById('create-back').value = '';
+    currentAudioBlob = null;
+    currentAudioUrl = null;
+    recordPreview.innerHTML = '';
+    recordStatus.textContent = '点击录音按钮开始';
+
+    showToast('卡片已保存');
+    renderCreatePage(container);
+  };
+
+  // Clear button
+  document.getElementById('btn-clear').onclick = () => {
+    document.getElementById('create-front').value = '';
+    document.getElementById('create-back').value = '';
+    currentAudioBlob = null;
+    currentAudioUrl = null;
+    recordPreview.innerHTML = '';
+    recordStatus.textContent = '点击录音按钮开始';
+  };
+
+  // Card list
+  if (allCards.length > 0) {
+    const listDiv = document.createElement('div');
+    listDiv.className = 'card-list';
+    listDiv.innerHTML = `
+      <div class="card-list-header">
+        <h3>已创建的卡片</h3>
+        <span class="card-list-count">共 ${allCards.length} 张</span>
+      </div>
+    `;
+
+    for (const card of allCards) {
+      const group = getCardGroup(card);
+      const item = document.createElement('div');
+      item.className = 'card-list-item';
+      item.innerHTML = `
+        <div class="card-list-item-content">
+          <div class="card-list-item-front">${escapeHtml(card.front)}</div>
+          <div class="card-list-item-back">${escapeHtml(card.back)}</div>
+        </div>
+        <div class="card-list-item-meta">
+          ${card.audioId ? `<span class="card-list-item-audio">${icon('volume')}</span>` : ''}
+          <span class="mastery-chip" data-group="${group}" style="font-size:0.68rem;padding:1px 6px">
+            <span class="mastery-chip-dot"></span>
+          </span>
+        </div>
+        <div class="card-list-item-actions">
+          <button class="icon-btn" data-edit="${card.id}" title="编辑">${icon('edit')}</button>
+          <button class="icon-btn" data-delete="${card.id}" title="删除">${icon('trash')}</button>
+        </div>
+      `;
+
+      const editBtn = item.querySelector('[data-edit]');
+      const delBtn = item.querySelector('[data-delete]');
+      editBtn.onclick = () => openEditModal(card);
+      delBtn.onclick = () => openDeleteModal(card.id);
+
+      listDiv.appendChild(item);
+    }
+    container.appendChild(listDiv);
+  }
+}
+
+function onRecordingComplete() {
+  const recordPreview = document.getElementById('record-preview');
+  const recordStatus = document.getElementById('record-status');
+  if (!recordPreview) return;
+
+  recordPreview.innerHTML = `
+    <div class="audio-bar">
+      <div class="audio-bar-play" id="preview-play">${icon('play')}</div>
+      <span class="audio-bar-time" id="preview-time">00:00</span>
+      <button class="audio-bar-remove" id="preview-remove">删除</button>
+    </div>
+  `;
+
+  const playBtn = document.getElementById('preview-play');
+  const audio = new Audio(currentAudioUrl);
+
+  playBtn.onclick = () => {
+    if (audio.paused) {
+      audio.play();
+      playBtn.innerHTML = icon('pause');
+    } else {
+      audio.pause();
+      playBtn.innerHTML = icon('play');
+    }
+  };
+
+  audio.onended = () => { playBtn.innerHTML = icon('play'); };
+  audio.ontimeupdate = () => {
+    const timeEl = document.getElementById('preview-time');
+    if (timeEl && audio.duration) {
+      const pct = (audio.currentTime / audio.duration * 100);
+      timeEl.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+    }
+  };
+
+  document.getElementById('preview-remove').onclick = () => {
+    currentAudioBlob = null;
+    currentAudioUrl = null;
+    recordPreview.innerHTML = '';
+    recordStatus.textContent = '录音已删除';
+  };
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+/* ============================================================
+   EDIT / DELETE MODAL
+   ============================================================ */
+function openEditModal(card) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-content" style="max-width:560px">
+      <h3 class="modal-title">编辑卡片</h3>
+      <div class="create-form" style="margin-top:var(--space-4)">
+        <div class="create-section">
+          <label class="field-label">正面内容</label>
+          <textarea class="field-textarea" id="edit-front" rows="3">${escapeHtml(card.front)}</textarea>
+        </div>
+        <div class="create-section">
+          <label class="field-label">反面内容</label>
+          <textarea class="field-textarea" id="edit-back" rows="3">${escapeHtml(card.back)}</textarea>
+        </div>
+        <div class="create-section">
+          <div class="audio-section" id="edit-audio-section">
+            <div class="record-btn" id="edit-record-btn">
+              <div class="record-btn-icon"></div>
+            </div>
+            <div class="audio-section-label">
+              <span>录音</span>
+              <span id="edit-record-status">${card.audioId ? '已有录音' : '点击录音按钮开始'}</span>
+            </div>
+            <div id="edit-record-preview"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:var(--space-5)">
+        <button class="btn btn-ghost" id="modal-cancel">取消</button>
+        <button class="btn btn-primary" id="modal-save">${icon('check')} 保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // --- Audio editing state ---
+  let editAudioBlob = null;
+  let editAudioUrl = null;
+  let editIsRecording = false;
+  let editRemovedExisting = false;
+
+  const editRecordBtn = overlay.querySelector('#edit-record-btn');
+  const editRecordStatus = overlay.querySelector('#edit-record-status');
+  const editRecordPreview = overlay.querySelector('#edit-record-preview');
+
+  // Show existing audio if present
+  async function showExistingAudio() {
+    if (!card.audioId) return;
+    const blob = await dbGet(STORE_AUDIO, card.audioId);
+    if (!blob) return;
+    editAudioUrl = URL.createObjectURL(blob);
+    editRecordPreview.innerHTML = `
+      <div class="audio-bar">
+        <div class="audio-bar-play" id="edit-preview-play">${icon('play')}</div>
+        <span class="audio-bar-time" id="edit-preview-time">00:00</span>
+        <button class="audio-bar-remove" id="edit-preview-remove">删除</button>
+      </div>
+    `;
+    bindAudioPreview(editAudioUrl);
+  }
+  showExistingAudio();
+
+  function bindAudioPreview(url) {
+    const playBtn = overlay.querySelector('#edit-preview-play');
+    const removeBtn = overlay.querySelector('#edit-preview-remove');
+    if (!playBtn) return;
+    const audio = new Audio(url);
+
+    playBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (audio.paused) {
+        audio.play();
+        playBtn.innerHTML = icon('pause');
+      } else {
+        audio.pause();
+        playBtn.innerHTML = icon('play');
+      }
+    };
+    audio.onended = () => { playBtn.innerHTML = icon('play'); };
+    audio.ontimeupdate = () => {
+      const timeEl = overlay.querySelector('#edit-preview-time');
+      if (timeEl && audio.duration) {
+        timeEl.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+      }
+    };
+    if (removeBtn) {
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        editAudioBlob = null;
+        editAudioUrl = null;
+        editRemovedExisting = true;
+        editRecordPreview.innerHTML = '';
+        editRecordStatus.textContent = '录音已删除，可重新录制';
+      };
+    }
+  }
+
+  // Recording
+  let editMediaRecorder = null;
+  let editAudioChunks = [];
+
+  editRecordBtn.onclick = async () => {
+    if (!editIsRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        editMediaRecorder = new MediaRecorder(stream);
+        editAudioChunks = [];
+        editMediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) editAudioChunks.push(e.data);
+        };
+        editMediaRecorder.onstop = () => {
+          editAudioBlob = new Blob(editAudioChunks, { type: 'audio/webm' });
+          if (editAudioUrl) URL.revokeObjectURL(editAudioUrl);
+          editAudioUrl = URL.createObjectURL(editAudioBlob);
+          editRecordPreview.innerHTML = `
+            <div class="audio-bar">
+              <div class="audio-bar-play" id="edit-preview-play">${icon('play')}</div>
+              <span class="audio-bar-time" id="edit-preview-time">00:00</span>
+              <button class="audio-bar-remove" id="edit-preview-remove">删除</button>
+            </div>
+          `;
+          bindAudioPreview(editAudioUrl);
+          stream.getTracks().forEach(t => t.stop());
+        };
+        editMediaRecorder.start();
+        editIsRecording = true;
+        editRecordBtn.classList.add('recording');
+        editRecordStatus.textContent = '录音中... 再次点击停止';
+      } catch (err) {
+        showToast('麦克风访问失败：' + err.message);
+      }
+    } else {
+      editMediaRecorder.stop();
+      editIsRecording = false;
+      editRecordBtn.classList.remove('recording');
+      editRecordStatus.textContent = '新录音完成';
+      editRemovedExisting = false;
+    }
+  };
+
+  // --- Buttons ---
+  overlay.querySelector('#modal-cancel').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.querySelector('#modal-save').onclick = async () => {
+    card.front = document.getElementById('edit-front').value.trim();
+    card.back = document.getElementById('edit-back').value.trim();
+
+    // Handle audio changes
+    if (editRemovedExisting && card.audioId) {
+      // Delete existing audio
+      await dbDelete(STORE_AUDIO, card.audioId);
+      card.audioId = null;
+    }
+    if (editAudioBlob) {
+      // New recording — delete old if exists, save new
+      if (card.audioId) {
+        await dbDelete(STORE_AUDIO, card.audioId);
+      }
+      const newAudioId = 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      await dbPut(STORE_AUDIO, editAudioBlob, newAudioId);
+      card.audioId = newAudioId;
+    }
+
+    await dbPut(STORE_CARDS, card);
+    overlay.remove();
+    showToast('卡片已更新');
+    navigate('create');
+  };
+}
+
+function openDeleteModal(cardId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-content">
+      <h3 class="modal-title">删除卡片？</h3>
+      <p class="modal-text">此操作不可撤销，卡片及其录音将被永久删除。</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">取消</button>
+        <button class="btn btn-danger" id="modal-confirm">${icon('trash')} 删除</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#modal-cancel').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.querySelector('#modal-confirm').onclick = async () => {
+    const card = await dbGet(STORE_CARDS, cardId);
+    if (card && card.audioId) {
+      await dbDelete(STORE_AUDIO, card.audioId);
+    }
+    await dbDelete(STORE_CARDS, cardId);
+    overlay.remove();
+    showToast('卡片已删除');
+    navigate('create');
+  };
+}
+
+/* ============================================================
+   GROWTH PAGE
+   ============================================================ */
+async function renderGrowthPage(container) {
+  const allCards = await dbGetAll(STORE_CARDS);
+  const reviewLog = await getReviewLog();
+
+  console.log('[Growth] reviewLog:', JSON.stringify(reviewLog));
+  console.log('[Growth] allCards:', allCards.length);
+  console.log('[Growth] todayKey:', formatDateKey(todayStart()));
+
+  const streak = calculateStreak(reviewLog);
+  const longestStreak = calculateLongestStreak(reviewLog);
+  const yearActive = calculateYearActiveDays(reviewLog);
+  const totalCards = allCards.length;
+
+  console.log('[Growth] streak:', streak, 'longest:', longestStreak, 'yearActive:', yearActive);
+
+  // Today stats
+  const todayKey = formatDateKey(todayStart());
+  const todayCount = reviewLog[todayKey] || 0;
+  const dueCards = allCards.filter(c => isCardDue(c)).length;
+
+  // Group distribution
+  const groupDist = { learning: 0, familiar: 0, mastered: 0 };
+  allCards.forEach(c => { groupDist[getCardGroup(c)]++; });
+
+  container.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">成长</h2>
+        <p class="page-subtitle">你的坚持轨迹</p>
+      </div>
+    </div>
+  `;
+
+  // Stats cards
+  const statsDiv = document.createElement('div');
+  statsDiv.className = 'growth-stats';
+  statsDiv.innerHTML = `
+    <div class="growth-stat-card">
+      <div class="growth-stat-icon">${icon('flame')}</div>
+      <div class="growth-stat-num">${streak}<span class="growth-stat-unit">天</span></div>
+      <div class="growth-stat-label">当前连续</div>
+    </div>
+    <div class="growth-stat-card">
+      <div class="growth-stat-icon">${icon('flame')}</div>
+      <div class="growth-stat-num">${longestStreak}<span class="growth-stat-unit">天</span></div>
+      <div class="growth-stat-label">最长连续</div>
+    </div>
+    <div class="growth-stat-card">
+      <div class="growth-stat-icon">${icon('calendar')}</div>
+      <div class="growth-stat-num">${yearActive}<span class="growth-stat-unit">天</span></div>
+      <div class="growth-stat-label">一年内坚持</div>
+    </div>
+    <div class="growth-stat-card">
+      <div class="growth-stat-icon">${icon('layers')}</div>
+      <div class="growth-stat-num">${totalCards}<span class="growth-stat-unit">张</span></div>
+      <div class="growth-stat-label">总卡片数</div>
+    </div>
+  `;
+  container.appendChild(statsDiv);
+
+  // Heatmap
+  const heatmapData = getHeatmapData(reviewLog);
+  const heatmapDiv = document.createElement('div');
+  heatmapDiv.className = 'heatmap-container';
+
+  const heatmapHeader = document.createElement('div');
+  heatmapHeader.className = 'heatmap-header';
+  heatmapHeader.innerHTML = `
+    <h3>复习热力图</h3>
+    <div class="heatmap-legend">
+      <span>少</span>
+      <div class="heatmap-legend-cells">
+        <div class="heatmap-legend-cell" style="background:oklch(88% 0.008 70 / 0.4)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(82% 0.04 40 / 0.6)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(70% 0.06 40 / 0.7)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(58% 0.08 35 / 0.8)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(48% 0.1 30)"></div>
+      </div>
+      <span>多</span>
+    </div>
+  `;
+  heatmapDiv.appendChild(heatmapHeader);
+
+  // Build heatmap grid: columns = weeks, rows = days of week
+  // dayLabels on left, weeks grid on right, month labels on top of grid
+  const gridWrapper = document.createElement('div');
+  gridWrapper.style.display = 'flex';
+  gridWrapper.style.flexDirection = 'column';
+  gridWrapper.style.gap = '4px';
+
+  // Month labels row (above the grid)
+  const monthLabelRow = document.createElement('div');
+  monthLabelRow.style.display = 'flex';
+  monthLabelRow.style.marginLeft = '22px';
+
+  // Day labels + weeks
+  const gridRow = document.createElement('div');
+  gridRow.style.display = 'flex';
+  gridRow.style.gap = '3px';
+
+  // Day labels (Mon/Wed/Fri)
+  const dayLabels = document.createElement('div');
+  dayLabels.className = 'heatmap-day-labels';
+  const dayNames = ['一','二','三','四','五','六','日'];
+  // Show labels for rows 1(Mon), 3(Wed), 5(Fri)
+  dayNames.forEach((d, i) => {
+    const label = document.createElement('div');
+    label.className = 'heatmap-day-label';
+    label.style.height = '12px';
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    if (i === 0 || i === 2 || i === 4) {
+      label.textContent = d;
+    } else {
+      label.textContent = '';
+    }
+    dayLabels.appendChild(label);
+  });
+  gridRow.appendChild(dayLabels);
+
+  // Weeks grid
+  const weeksRow = document.createElement('div');
+  weeksRow.style.display = 'flex';
+  weeksRow.style.gap = '3px';
+
+  // Split data into weeks (each week = 7 days, Sun=0..Sat=6)
+  const weeks = [];
+  for (let i = 0; i < heatmapData.length; i += 7) {
+    weeks.push(heatmapData.slice(i, i + 7));
+  }
+
+  // Month label tracking
+  let prevMonth = -1;
+  let weekOffset = 0;
+  const monthLabelEntries = []; // { weekIdx, name }
+
+  weeks.forEach((week, wIdx) => {
+    const weekDiv = document.createElement('div');
+    weekDiv.className = 'heatmap-week';
+
+    // Check month change
+    const weekMonth = new Date(week[0].date).getMonth();
+    if (weekMonth !== prevMonth) {
+      monthLabelEntries.push({
+        weekIdx: wIdx,
+        name: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][weekMonth]
+      });
+      prevMonth = weekMonth;
+    }
+
+    week.forEach(day => {
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      cell.dataset.level = day.level;
+      cell.title = `${formatDateKey(day.date)}: ${day.count} 次`;
+      weekDiv.appendChild(cell);
+    });
+
+    weeksRow.appendChild(weekDiv);
+  });
+
+  gridRow.appendChild(weeksRow);
+
+  // Build month labels
+  monthLabelEntries.forEach((ml, i) => {
+    const startWeek = ml.weekIdx;
+    const endWeek = (i + 1 < monthLabelEntries.length) ? monthLabelEntries[i + 1].weekIdx : weeks.length;
+    const span = endWeek - startWeek;
+    const spacer = document.createElement('div');
+    spacer.style.minWidth = `calc(${span} * 15px - 3px)`;
+    spacer.style.fontSize = '0.65rem';
+    spacer.style.color = 'var(--ink-faint)';
+    spacer.textContent = ml.name;
+    monthLabelRow.appendChild(spacer);
+  });
+
+  gridWrapper.appendChild(monthLabelRow);
+  gridWrapper.appendChild(gridRow);
+  heatmapDiv.appendChild(gridWrapper);
+  container.appendChild(heatmapDiv);
+
+  // Today summary
+  const todayDiv = document.createElement('div');
+  todayDiv.className = 'today-summary';
+  todayDiv.innerHTML = `
+    <h3>今日概况</h3>
+    <div class="today-summary-grid">
+      <div class="today-summary-item">
+        <div class="today-summary-num" style="color:var(--accent)">${todayCount}</div>
+        <div class="today-summary-label">今日活动</div>
+      </div>
+      <div class="today-summary-item">
+        <div class="today-summary-num" style="color:var(--warning)">${dueCards}</div>
+        <div class="today-summary-label">待复习</div>
+      </div>
+      <div class="today-summary-item">
+        <div class="today-summary-num" style="color:var(--mastery-learn)">${groupDist.learning}</div>
+        <div class="today-summary-label">学习组</div>
+      </div>
+      <div class="today-summary-item">
+        <div class="today-summary-num" style="color:var(--mastery-familiar)">${groupDist.familiar}</div>
+        <div class="today-summary-label">熟悉组</div>
+      </div>
+      <div class="today-summary-item">
+        <div class="today-summary-num" style="color:var(--mastery-master)">${groupDist.mastered}</div>
+        <div class="today-summary-label">掌握组</div>
+      </div>
+    </div>
+  `;
+  container.appendChild(todayDiv);
+}
+
+/* ============================================================
+   EXPORT / IMPORT
+   ============================================================ */
+async function exportData() {
+  const cards = await dbGetAll(STORE_CARDS);
+  const reviewLog = await getReviewLog();
+
+  const exportObj = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    cards: [],
+    reviewLog: reviewLog,
+  };
+
+  for (const card of cards) {
+    let audioBase64 = null;
+    if (card.audioId) {
+      const audioBlob = await dbGet(STORE_AUDIO, card.audioId);
+      if (audioBlob) {
+        audioBase64 = await blobToBase64(audioBlob);
+      }
+    }
+    exportObj.cards.push({
+      ...card,
+      audioBase64: audioBase64,
+    });
+  }
+
+  const json = JSON.stringify(exportObj, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `flashcards_${formatDateKey(todayStart())}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('数据已导出');
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(base64, mime) {
+  const parts = base64.split(',');
+  const data = parts[1];
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mimeType = mimeMatch ? mimeMatch[1] : mime || 'audio/webm';
+  const byteString = atob(data);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function importData(file) {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!data.cards || !Array.isArray(data.cards)) {
+      showToast('文件格式不正确');
+      return;
+    }
+
+    let imported = 0;
+    for (const cardData of data.cards) {
+      let audioId = null;
+      if (cardData.audioBase64) {
+        audioId = cardData.audioId || ('a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+        const audioBlob = base64ToBlob(cardData.audioBase64);
+        await dbPut(STORE_AUDIO, audioBlob, audioId);
+      }
+      const card = { ...cardData };
+      delete card.audioBase64;
+      card.audioId = audioId;
+      await dbPut(STORE_CARDS, card);
+      imported++;
+    }
+
+    if (data.reviewLog) {
+      await saveReviewLog(data.reviewLog);
+    }
+
+    showToast(`已导入 ${imported} 张卡片`);
+    navigate(currentPage);
+  } catch (err) {
+    showToast('导入失败：' + err.message);
+  }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showToast(message) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 200);
+  }, 2500);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init() {
+  injectIcons();
+
+  // Navigation
+  document.querySelectorAll('[data-page]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigate(el.dataset.page);
+    });
+  });
+
+  // Export
+  document.getElementById('btn-export').onclick = exportData;
+
+  // Import
+  document.getElementById('btn-import').onclick = () => {
+    document.getElementById('import-file').click();
+  };
+  document.getElementById('import-file').onchange = (e) => {
+    if (e.target.files[0]) importData(e.target.files[0]);
+    e.target.value = '';
+  };
+
+  // Start on review page
+  await navigate('review');
+}
+
+// Wait for DB then init
+openDB().then(() => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+}).catch(err => {
+  document.body.innerHTML = '<div style="padding:2rem;text-align:center">数据库初始化失败：' + err.message + '</div>';
+});
+</script>
+</body>
+</html>
