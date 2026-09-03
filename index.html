@@ -1811,13 +1811,14 @@ function calculateStreak(log) {
 }
 
 function calculateLongestStreak(log) {
-  const dates = Object.keys(log).sort();
+  const dates = Object.keys(log).filter(k => log[k] > 0).sort();
   if (dates.length === 0) return 0;
+  if (dates.length === 1) return 1;
   let longest = 1;
   let current = 1;
   for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(dates[i - 1]);
-    const curr = new Date(dates[i]);
+    const prev = new Date(dates[i - 1] + 'T00:00:00');
+    const curr = new Date(dates[i] + 'T00:00:00');
     const diff = Math.round((curr - prev) / 86400000);
     if (diff === 1) {
       current++;
@@ -1833,7 +1834,7 @@ function calculateYearActiveDays(log) {
   const yearAgo = todayStart() - 365 * 86400000;
   let count = 0;
   for (const key in log) {
-    const ts = new Date(key).getTime();
+    const ts = new Date(key + 'T00:00:00').getTime();
     if (ts >= yearAgo && log[key] > 0) count++;
   }
   return count;
@@ -1875,7 +1876,19 @@ let audioContext = null;
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+
+    // iOS Safari doesn't support webm, use mp4 or default
+    let mimeType = 'audio/webm';
+    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      mimeType = 'audio/mp4';
+    } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+      mimeType = 'audio/webm;codecs=opus';
+    } else if (!MediaRecorder.isTypeSupported('audio/webm')) {
+      mimeType = ''; // let browser choose
+    }
+
+    const options = mimeType ? { mimeType } : {};
+    mediaRecorder = new MediaRecorder(stream, options);
     audioChunks = [];
 
     mediaRecorder.ondataavailable = (e) => {
@@ -1883,7 +1896,8 @@ async function startRecording() {
     };
 
     mediaRecorder.onstop = async () => {
-      currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const recordedType = mediaRecorder.mimeType || mimeType || 'audio/webm';
+      currentAudioBlob = new Blob(audioChunks, { type: recordedType });
       if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
       currentAudioUrl = URL.createObjectURL(currentAudioBlob);
       stream.getTracks().forEach(t => t.stop());
@@ -2120,33 +2134,47 @@ async function showReviewCard() {
   let isFlipped = false;
   let startX = 0, startY = 0, isDragging = false;
   let currentX = 0;
+  let hasMoved = false;
+  let pointerType = 'touch';
 
+  // Click to flip (only if no drag happened)
   reviewCard.addEventListener('click', (e) => {
     if (e.target.closest('[data-audio]')) return;
-    if (isDragging) return;
+    if (hasMoved) return;
     isFlipped = !isFlipped;
     reviewCard.classList.toggle('flipped');
   });
 
-  // Touch / mouse swipe
-  function onStart(e) {
+  // Touch swipe (mobile)
+  function onTouchStart(e) {
+    console.log('[Swipe] touchstart', e.target.className);
     if (e.target.closest('[data-audio]')) return;
+    if (e.touches.length !== 1) return;
+    pointerType = 'touch';
     isDragging = true;
-    startX = e.touches ? e.touches[0].clientX : e.clientX;
-    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    hasMoved = false;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
     currentX = 0;
     reviewCard.style.transition = 'none';
   }
 
-  function onMove(e) {
+  function onTouchMove(e) {
     if (!isDragging) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const clientX = e.touches[0].clientX;
+    const clientY = e.touches[0].clientY;
     currentX = clientX - startX;
-    const deltaY = Math.abs((e.touches ? e.touches[0].clientY : e.clientY) - startY);
+    const deltaY = Math.abs(clientY - startY);
 
-    // Only horizontal swipe
-    if (deltaY > 50) return;
+    if (deltaY > 50) {
+      // Vertical scroll — cancel drag
+      isDragging = false;
+      reviewCard.style.transition = '';
+      reviewCard.style.transform = '';
+      return;
+    }
+
+    if (Math.abs(currentX) > 5) hasMoved = true;
 
     const rotate = (currentX / 300) * 15;
     reviewCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
@@ -2154,21 +2182,14 @@ async function showReviewCard() {
     // Show indicators
     const leftInd = cardArea.querySelector('.swipe-indicator-left');
     const rightInd = cardArea.querySelector('.swipe-indicator-right');
-    if (currentX < -40) {
-      leftInd.style.opacity = Math.min(1, Math.abs(currentX) / 100);
-      rightInd.style.opacity = 0;
-    } else if (currentX > 40) {
-      rightInd.style.opacity = Math.min(1, currentX / 100);
-      leftInd.style.opacity = 0;
-    } else {
-      leftInd.style.opacity = 0;
-      rightInd.style.opacity = 0;
-    }
+    if (leftInd) leftInd.style.opacity = currentX < -40 ? Math.min(1, Math.abs(currentX) / 100) : 0;
+    if (rightInd) rightInd.style.opacity = currentX > 40 ? Math.min(1, currentX / 100) : 0;
 
     if (e.cancelable) e.preventDefault();
   }
 
-  function onEnd(e) {
+  function onTouchEnd(e) {
+    console.log('[Swipe] touchend, currentX:', currentX, 'isDragging:', isDragging);
     if (!isDragging) return;
     isDragging = false;
     reviewCard.style.transition = '';
@@ -2179,21 +2200,66 @@ async function showReviewCard() {
     if (leftInd) leftInd.style.opacity = 0;
     if (rightInd) rightInd.style.opacity = 0;
 
-    if (currentX < -80) {
-      // Swipe left = remember
+    if (currentX < -60) {
       handleReviewResult('remember');
-    } else if (currentX > 80) {
-      // Swipe right = forget
+    } else if (currentX > 60) {
       handleReviewResult('forget');
     }
   }
 
-  reviewCard.addEventListener('touchstart', onStart, { passive: false });
-  reviewCard.addEventListener('touchmove', onMove, { passive: false });
-  reviewCard.addEventListener('touchend', onEnd);
-  reviewCard.addEventListener('mousedown', onStart);
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onEnd);
+  reviewCard.addEventListener('touchstart', onTouchStart, { passive: true });
+  reviewCard.addEventListener('touchmove', onTouchMove, { passive: false });
+  reviewCard.addEventListener('touchend', onTouchEnd);
+
+  // Mouse swipe (desktop) — self-contained, cleaned up on next render
+  function onMouseDown(e) {
+    console.log('[Swipe] mousedown', e.target.className, 'button:', e.button);
+    if (e.target.closest('[data-audio]')) return;
+    if (e.button !== 0) return;
+    pointerType = 'mouse';
+    isDragging = true;
+    hasMoved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    currentX = 0;
+    reviewCard.style.transition = 'none';
+    e.preventDefault();
+  }
+
+  function onMouseMove(e) {
+    if (!isDragging) return;
+    currentX = e.clientX - startX;
+    const deltaY = Math.abs(e.clientY - startY);
+    if (deltaY > 50) return;
+    if (Math.abs(currentX) > 5) hasMoved = true;
+    const rotate = (currentX / 300) * 15;
+    reviewCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+    const leftInd = cardArea.querySelector('.swipe-indicator-left');
+    const rightInd = cardArea.querySelector('.swipe-indicator-right');
+    if (leftInd) leftInd.style.opacity = currentX < -40 ? Math.min(1, Math.abs(currentX) / 100) : 0;
+    if (rightInd) rightInd.style.opacity = currentX > 40 ? Math.min(1, currentX / 100) : 0;
+  }
+
+  function onMouseUp(e) {
+    console.log('[Swipe] mouseup, currentX:', currentX, 'isDragging:', isDragging);
+    if (!isDragging) return;
+    isDragging = false;
+    reviewCard.style.transition = '';
+    reviewCard.style.transform = '';
+    const leftInd = cardArea.querySelector('.swipe-indicator-left');
+    const rightInd = cardArea.querySelector('.swipe-indicator-right');
+    if (leftInd) leftInd.style.opacity = 0;
+    if (rightInd) rightInd.style.opacity = 0;
+    if (currentX < -60) {
+      handleReviewResult('remember');
+    } else if (currentX > 60) {
+      handleReviewResult('forget');
+    }
+  }
+
+  reviewCard.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp, { once: false });
 }
 
 async function handleReviewResult(result) {
@@ -2598,13 +2664,25 @@ function openEditModal(card) {
     if (!editIsRecording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        editMediaRecorder = new MediaRecorder(stream);
+
+        // iOS Safari compatibility
+        let editMime = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          editMime = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          editMime = 'audio/webm;codecs=opus';
+        } else if (!MediaRecorder.isTypeSupported('audio/webm')) {
+          editMime = '';
+        }
+        const editOpts = editMime ? { mimeType: editMime } : {};
+        editMediaRecorder = new MediaRecorder(stream, editOpts);
         editAudioChunks = [];
         editMediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) editAudioChunks.push(e.data);
         };
         editMediaRecorder.onstop = () => {
-          editAudioBlob = new Blob(editAudioChunks, { type: 'audio/webm' });
+          const recType = editMediaRecorder.mimeType || editMime || 'audio/webm';
+          editAudioBlob = new Blob(editAudioChunks, { type: recType });
           if (editAudioUrl) URL.revokeObjectURL(editAudioUrl);
           editAudioUrl = URL.createObjectURL(editAudioBlob);
           editRecordPreview.innerHTML = `
@@ -2780,101 +2858,108 @@ async function renderGrowthPage(container) {
   `;
   heatmapDiv.appendChild(heatmapHeader);
 
-  // Build heatmap grid: columns = weeks, rows = days of week
-  // dayLabels on left, weeks grid on right, month labels on top of grid
-  const gridWrapper = document.createElement('div');
-  gridWrapper.style.display = 'flex';
-  gridWrapper.style.flexDirection = 'column';
-  gridWrapper.style.gap = '4px';
+  // Build heatmap: columns = weeks, rows = days (Sun=0 at top)
+  const CELL = 12, GAP = 3, LABEL_W = 20;
 
-  // Month labels row (above the grid)
-  const monthLabelRow = document.createElement('div');
-  monthLabelRow.style.display = 'flex';
-  monthLabelRow.style.marginLeft = '22px';
-
-  // Day labels + weeks
-  const gridRow = document.createElement('div');
-  gridRow.style.display = 'flex';
-  gridRow.style.gap = '3px';
-
-  // Day labels (Mon/Wed/Fri)
-  const dayLabels = document.createElement('div');
-  dayLabels.className = 'heatmap-day-labels';
-  const dayNames = ['一','二','三','四','五','六','日'];
-  // Show labels for rows 1(Mon), 3(Wed), 5(Fri)
-  dayNames.forEach((d, i) => {
-    const label = document.createElement('div');
-    label.className = 'heatmap-day-label';
-    label.style.height = '12px';
-    label.style.display = 'flex';
-    label.style.alignItems = 'center';
-    if (i === 0 || i === 2 || i === 4) {
-      label.textContent = d;
-    } else {
-      label.textContent = '';
-    }
-    dayLabels.appendChild(label);
-  });
-  gridRow.appendChild(dayLabels);
-
-  // Weeks grid
-  const weeksRow = document.createElement('div');
-  weeksRow.style.display = 'flex';
-  weeksRow.style.gap = '3px';
-
-  // Split data into weeks (each week = 7 days, Sun=0..Sat=6)
+  // Group data into weeks (7-day columns, Sun-first)
   const weeks = [];
   for (let i = 0; i < heatmapData.length; i += 7) {
     weeks.push(heatmapData.slice(i, i + 7));
   }
 
-  // Month label tracking
+  const gridWrapper = document.createElement('div');
+  gridWrapper.style.display = 'inline-block';
+  gridWrapper.style.minWidth = 'fit-content';
+
+  // Month labels row — aligned above week columns
+  const monthLabelRow = document.createElement('div');
+  monthLabelRow.style.display = 'flex';
+  monthLabelRow.style.height = '16px';
+  monthLabelRow.style.marginLeft = LABEL_W + 'px';
+  monthLabelRow.style.marginBottom = GAP + 'px';
+
   let prevMonth = -1;
-  let weekOffset = 0;
-  const monthLabelEntries = []; // { weekIdx, name }
+  const monthEntries = [];
 
-  weeks.forEach((week, wIdx) => {
-    const weekDiv = document.createElement('div');
-    weekDiv.className = 'heatmap-week';
-
-    // Check month change
-    const weekMonth = new Date(week[0].date).getMonth();
-    if (weekMonth !== prevMonth) {
-      monthLabelEntries.push({
-        weekIdx: wIdx,
-        name: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][weekMonth]
-      });
-      prevMonth = weekMonth;
+  weeks.forEach((week, colIdx) => {
+    if (week.length > 0) {
+      const m = new Date(week[0].date).getMonth();
+      if (m !== prevMonth) {
+        monthEntries.push({ colIdx, month: m });
+        prevMonth = m;
+      }
     }
-
-    week.forEach(day => {
-      const cell = document.createElement('div');
-      cell.className = 'heatmap-cell';
-      cell.dataset.level = day.level;
-      cell.title = `${formatDateKey(day.date)}: ${day.count} 次`;
-      weekDiv.appendChild(cell);
-    });
-
-    weeksRow.appendChild(weekDiv);
   });
 
-  gridRow.appendChild(weeksRow);
-
-  // Build month labels
-  monthLabelEntries.forEach((ml, i) => {
-    const startWeek = ml.weekIdx;
-    const endWeek = (i + 1 < monthLabelEntries.length) ? monthLabelEntries[i + 1].weekIdx : weeks.length;
-    const span = endWeek - startWeek;
+  monthEntries.forEach((me, i) => {
+    const startCol = me.colIdx;
+    const endCol = (i + 1 < monthEntries.length) ? monthEntries[i + 1].colIdx : weeks.length;
+    const span = endCol - startCol;
     const spacer = document.createElement('div');
-    spacer.style.minWidth = `calc(${span} * 15px - 3px)`;
-    spacer.style.fontSize = '0.65rem';
+    spacer.style.width = `calc(${span} * ${CELL + GAP}px - ${GAP}px)`;
+    spacer.style.fontSize = '0.62rem';
     spacer.style.color = 'var(--ink-faint)';
-    spacer.textContent = ml.name;
+    spacer.style.overflow = 'hidden';
+    spacer.style.whiteSpace = 'nowrap';
+    spacer.textContent = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][me.month];
     monthLabelRow.appendChild(spacer);
   });
 
   gridWrapper.appendChild(monthLabelRow);
-  gridWrapper.appendChild(gridRow);
+
+  // Grid body: day labels + week columns
+  const gridBody = document.createElement('div');
+  gridBody.style.display = 'flex';
+
+  // Day labels column (7 rows: Sun=0 at top, then Mon, Tue, ...)
+  const dayLabelCol = document.createElement('div');
+  dayLabelCol.style.width = LABEL_W + 'px';
+  dayLabelCol.style.display = 'flex';
+  dayLabelCol.style.flexDirection = 'column';
+  dayLabelCol.style.gap = GAP + 'px';
+
+  const dayNames = ['日','一','二','三','四','五','六'];
+  dayNames.forEach((d, i) => {
+    const label = document.createElement('div');
+    label.style.height = CELL + 'px';
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.fontSize = '0.62rem';
+    label.style.color = 'var(--ink-faint)';
+    if (i === 1 || i === 3 || i === 5) {
+      label.textContent = d;
+    }
+    dayLabelCol.appendChild(label);
+  });
+  gridBody.appendChild(dayLabelCol);
+
+  // Week columns
+  const weekCols = document.createElement('div');
+  weekCols.style.display = 'flex';
+  weekCols.style.gap = GAP + 'px';
+
+  weeks.forEach(week => {
+    const col = document.createElement('div');
+    col.style.display = 'flex';
+    col.style.flexDirection = 'column';
+    col.style.gap = GAP + 'px';
+
+    for (let r = 0; r < 7; r++) {
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      if (week[r]) {
+        cell.dataset.level = week[r].level;
+        cell.title = `${formatDateKey(week[r].date)}: ${week[r].count} 次`;
+      } else {
+        cell.dataset.level = '0';
+      }
+      col.appendChild(cell);
+    }
+    weekCols.appendChild(col);
+  });
+
+  gridBody.appendChild(weekCols);
+  gridWrapper.appendChild(gridBody);
   heatmapDiv.appendChild(gridWrapper);
   container.appendChild(heatmapDiv);
 
