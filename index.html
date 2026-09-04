@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>纸卡 · Flash Card Workbench</title>
+<title>Sentence Vault · Japanese Flashcards</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=LXGW+WenKai+TC&display=swap" rel="stylesheet">
@@ -446,6 +446,11 @@ textarea {
     padding-bottom: calc(56px + var(--space-6) + env(safe-area-inset-bottom));
   }
   .page-title { font-size: 1.8rem; }
+  .review-card-container { min-height: 280px; }
+  .review-card { min-height: clamp(240px, 42dvh, 320px); }
+  .review-card-face { padding: var(--space-6) var(--space-5); }
+  .review-card-text { font-size: 1.18rem; }
+  .review-card-hint { gap: var(--space-3); font-size: 0.72rem; }
 }
 
 /* ============================================================
@@ -744,6 +749,8 @@ textarea {
   transform-style: preserve-3d;
   transition: transform 400ms var(--ease-out-quart);
   cursor: pointer;
+  /* Preserve vertical scrolling while handling horizontal review swipes. */
+  touch-action: pan-y;
 }
 
 .review-card.flipped {
@@ -819,6 +826,37 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+.review-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  width: min(500px, 100%);
+  margin: var(--space-5) auto 0;
+}
+
+.review-action {
+  min-height: 50px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: transform 120ms var(--ease-out-quart), filter 120ms var(--ease-out-quart);
+}
+
+.review-action:active { transform: scale(0.97); }
+.review-action:disabled { opacity: 0.55; cursor: not-allowed; }
+.review-action-again {
+  color: var(--danger);
+  background: var(--danger-pale);
+  border-color: oklch(70% 0.06 25 / 0.35);
+}
+.review-action-remember {
+  color: var(--success);
+  background: var(--success-pale);
+  border-color: oklch(65% 0.07 145 / 0.35);
 }
 
 /* Swipe animations */
@@ -1306,9 +1344,9 @@ textarea {
   z-index: 5;
 }
 
-.heatmap-cell[data-level="1"] { background: oklch(82% 0.04 40 / 0.6); }
-.heatmap-cell[data-level="2"] { background: oklch(70% 0.06 40 / 0.7); }
-.heatmap-cell[data-level="3"] { background: oklch(58% 0.08 35 / 0.8); }
+.heatmap-cell[data-level="1"] { background: oklch(76% 0.065 40); }
+.heatmap-cell[data-level="2"] { background: oklch(65% 0.08 40); }
+.heatmap-cell[data-level="3"] { background: oklch(55% 0.095 35); }
 .heatmap-cell[data-level="4"] { background: oklch(48% 0.1 30); }
 
 .heatmap-month-labels {
@@ -1506,32 +1544,32 @@ textarea {
     <div class="sidebar-brand">
       <div class="sidebar-brand-icon" data-icon="layers"></div>
       <div class="sidebar-brand-text">
-        <h1>纸卡</h1>
-        <p>Flash Card Workbench</p>
+        <h1>Sentence Vault</h1>
+        <p>Japanese flashcards</p>
       </div>
     </div>
     <nav class="sidebar-nav">
       <a class="nav-item active" data-page="review">
         <span class="nav-item-icon">eye</span>
-        <span>复习</span>
+        <span>Review</span>
       </a>
       <a class="nav-item" data-page="create">
         <span class="nav-item-icon">plus</span>
-        <span>创建</span>
+        <span>Collect</span>
       </a>
       <a class="nav-item" data-page="growth">
         <span class="nav-item-icon">chart</span>
-        <span>成长</span>
+        <span>Progress</span>
       </a>
     </nav>
     <div class="sidebar-footer">
       <button class="sidebar-btn" id="btn-export">
         <span>export</span>
-        <span>导出数据</span>
+        <span>Export backup</span>
       </button>
       <button class="sidebar-btn" id="btn-import">
         <span>import</span>
-        <span>导入数据</span>
+        <span>Import backup</span>
       </button>
       <input type="file" id="import-file" accept=".json" class="hidden">
     </div>
@@ -1549,15 +1587,15 @@ textarea {
     <div class="mobile-tabbar-inner">
       <a class="tab-item active" data-page="review">
         <span class="tab-item-icon">eye</span>
-        <span>复习</span>
+        <span>Review</span>
       </a>
       <a class="tab-item" data-page="create">
         <span class="tab-item-icon">plus</span>
-        <span>创建</span>
+        <span>Collect</span>
       </a>
       <a class="tab-item" data-page="growth">
         <span class="tab-item-icon">chart</span>
-        <span>成长</span>
+        <span>Progress</span>
       </a>
     </div>
   </nav>
@@ -1738,7 +1776,7 @@ function getCardGroup(card) {
 }
 
 function getGroupName(group) {
-  return { learning: '学习组', familiar: '熟悉组', mastered: '掌握组' }[group];
+  return { learning: 'Learning', familiar: 'Familiar', mastered: 'Mastered' }[group];
 }
 
 function getGroupColor(group) {
@@ -1772,8 +1810,20 @@ function applyReviewResult(card, result) {
    STATS / GROWTH DATA
    ============================================================ */
 async function getReviewLog() {
-  const rec = await dbGet(STORE_STATS, 'reviewLog');
-  return rec ? rec.value : {};  // { 'YYYY-MM-DD': count }
+  // Derive progress from the cards themselves. The previous implementation also
+  // counted newly collected cards as study activity, which made the heatmap and
+  // daily totals misleading.
+  const cards = await dbGetAll(STORE_CARDS);
+  const log = {};
+  cards.forEach(card => {
+    const reviewedDates = new Set(
+      (card.reviewHistory || []).map(entry => formatDateKey(entry.date))
+    );
+    reviewedDates.forEach(dateKey => {
+      log[dateKey] = (log[dateKey] || 0) + 1;
+    });
+  });
+  return log;
 }
 
 async function saveReviewLog(log) {
@@ -1844,10 +1894,10 @@ function getHeatmapData(log) {
   const today = todayStart();
   const data = [];
   const day = 86400000;
-  // Always render complete Sunday–Saturday columns. This keeps the weekday axis
-  // stable on every day of the week instead of shifting the last column.
+  // Show a useful, fully visible recent window on a phone: 12 complete
+  // Sunday–Saturday columns including the current week.
   const thisWeek = today - new Date(today).getDay() * day;
-  let date = thisWeek - 52 * 7 * day; // 53 calendar-week columns including this week
+  let date = thisWeek - 11 * 7 * day;
   const end = thisWeek + 6 * day;
   while (date <= end) {
     const key = formatDateKey(date);
@@ -1906,7 +1956,7 @@ async function startRecording() {
     mediaRecorder.start();
     return true;
   } catch (err) {
-    showToast('麦克风访问失败：' + err.message);
+    showToast('Microphone access failed: ' + err.message);
     return false;
   }
 }
@@ -1926,7 +1976,7 @@ function playAudioUrl(url, button) {
   };
   audio.onerror = () => {
     button.innerHTML = icon('play');
-    showToast('音频播放失败');
+    showToast('Audio playback failed.');
   };
 }
 
@@ -1945,7 +1995,7 @@ async function playAudioById(audioId, button) {
 let currentPage = 'review';
 let reviewQueue = [];
 let reviewIndex = 0;
-let reviewGroups = { learning: true, familiar: true, mastered: true };
+let reviewSessionResults = [];
 let createAudioBlob = null;
 let editingCardId = null;
 
@@ -1977,23 +2027,15 @@ async function navigate(page) {
 async function renderReviewPage(container) {
   const allCards = await dbGetAll(STORE_CARDS);
   const dueCards = allCards.filter(c => isCardDue(c));
-
-  // Count by group
-  const groupCounts = {
-    learning: 0, familiar: 0, mastered: 0
-  };
-  dueCards.forEach(c => { groupCounts[getCardGroup(c)]++; });
-
-  // Filter by selected groups
-  reviewQueue = dueCards.filter(c => reviewGroups[getCardGroup(c)]);
+  reviewQueue = dueCards;
   reviewIndex = 0;
+  reviewSessionResults = [];
 
-  // Header
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h2 class="page-title">复习</h2>
-        <p class="page-subtitle">${dueCards.length > 0 ? '今天有 ' + dueCards.length + ' 张卡片到期' : '今日复习已完成'}</p>
+        <h2 class="page-title">Review</h2>
+        <p class="page-subtitle">${dueCards.length > 0 ? dueCards.length + ' cards ready today' : 'You are all caught up for today'}</p>
       </div>
     </div>
   `;
@@ -2002,52 +2044,15 @@ async function renderReviewPage(container) {
     container.innerHTML += `
       <div class="review-empty">
         <div class="review-empty-icon">leaf</div>
-        <h3 class="review-empty-title">今天的卡片都翻完了</h3>
-        <p class="review-empty-text">休息一下吧，明天会有新的卡片到期</p>
+        <h3 class="review-empty-title">You are done for today</h3>
+        <p class="review-empty-text">Come back tomorrow for your next review.</p>
       </div>
     `;
-    // Replace icon
     const iconEl = container.querySelector('.review-empty-icon');
     iconEl.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>';
     return;
   }
 
-  // Group filter
-  const filterBar = document.createElement('div');
-  filterBar.className = 'group-filter-bar';
-  filterBar.innerHTML = `<span class="group-filter-label">筛选:</span>`;
-
-  for (const [key, label] of [['learning','学习组'],['familiar','熟悉组'],['mastered','掌握组']]) {
-    const chip = document.createElement('div');
-    chip.className = 'mastery-chip' + (reviewGroups[key] ? '' : ' inactive');
-    chip.dataset.group = key;
-    chip.innerHTML = `
-      <span class="mastery-chip-dot"></span>
-      <span>${label}</span>
-      <span style="opacity:0.6">${groupCounts[key]}</span>
-    `;
-    chip.onclick = () => {
-      reviewGroups[key] = !reviewGroups[key];
-      navigate('review');
-    };
-    filterBar.appendChild(chip);
-  }
-  container.appendChild(filterBar);
-
-  if (reviewQueue.length === 0) {
-    container.innerHTML += `
-      <div class="review-empty">
-        <div class="review-empty-icon" style="font-size:2rem">dash</div>
-        <h3 class="review-empty-title">所选组没有到期卡片</h3>
-        <p class="review-empty-text">尝试启用其他分组</p>
-      </div>
-    `;
-    const iconEl = container.querySelector('.review-empty-icon');
-    iconEl.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-    return;
-  }
-
-  // Progress bar
   const progressDiv = document.createElement('div');
   progressDiv.className = 'review-progress';
   progressDiv.innerHTML = `
@@ -2062,13 +2067,22 @@ async function renderReviewPage(container) {
   cardArea.id = 'review-card-area';
   container.appendChild(cardArea);
 
-  // Swipe hints
+  const actionDiv = document.createElement('div');
+  actionDiv.className = 'review-actions';
+  actionDiv.innerHTML = `
+    <button class="review-action review-action-again" id="btn-review-again">Review again</button>
+    <button class="review-action review-action-remember" id="btn-review-remember">I remembered</button>
+  `;
+  container.appendChild(actionDiv);
+  document.getElementById('btn-review-again').onclick = () => handleReviewResult('again');
+  document.getElementById('btn-review-remember').onclick = () => handleReviewResult('remember');
+
   const hintDiv = document.createElement('div');
   hintDiv.className = 'review-card-hint';
   hintDiv.innerHTML = `
-    <span>${icon('check')} 左滑 = 记得</span>
-    <span>${icon('x')} 右滑 = 不记得</span>
-    <span style="opacity:0.5">点击 = 翻面</span>
+    <span>${icon('check')} Swipe left: remembered</span>
+    <span>${icon('x')} Swipe right: review again</span>
+    <span style="opacity:0.5">Tap card: reveal</span>
   `;
   container.appendChild(hintDiv);
 
@@ -2085,28 +2099,18 @@ async function showReviewCard() {
   }
 
   const card = reviewQueue[reviewIndex];
-  const group = getCardGroup(card);
-  const groupColor = getGroupColor(group);
-  const interval = EBBINGHAUS_INTERVALS[card.stage];
 
-  // Reset cardArea
   cardArea.innerHTML = `
     <div class="review-card" id="review-card">
-      <div class="swipe-indicator swipe-indicator-left">记得</div>
-      <div class="swipe-indicator swipe-indicator-right">不记得</div>
+      <div class="swipe-indicator swipe-indicator-left">Remembered</div>
+      <div class="swipe-indicator swipe-indicator-right">Again</div>
       <div class="review-card-face review-card-front paper-card-fold">
-        <span class="review-card-stage-badge" style="background:var(--paper-bg-2);color:${groupColor};border:1px solid ${groupColor}33">
-          ${getGroupName(group)} · ${interval}天
-        </span>
-        <div class="review-card-label">正面</div>
+        <div class="review-card-label">Japanese sentence</div>
         <div class="review-card-text">${escapeHtml(card.front)}</div>
         ${card.audioId ? `<div class="review-card-audio"><button class="audio-bar-play" data-audio="${card.audioId}">${icon('play')}</button></div>` : ''}
       </div>
       <div class="review-card-face review-card-back">
-        <span class="review-card-stage-badge" style="background:var(--paper-bg-2);color:${groupColor};border:1px solid ${groupColor}33">
-          ${getGroupName(group)} · ${interval}天
-        </span>
-        <div class="review-card-label">反面</div>
+        <div class="review-card-label">Your note</div>
         <div class="review-card-text">${escapeHtml(card.back)}</div>
         ${card.audioId ? `<div class="review-card-audio"><button class="audio-bar-play" data-audio="${card.audioId}">${icon('play')}</button></div>` : ''}
       </div>
@@ -2128,15 +2132,12 @@ async function showReviewCard() {
     };
   });
 
-  // Card flip + swipe
   const cardElement = document.getElementById('review-card');
   let isFlipped = false;
-  let startX = 0, startY = 0, isDragging = false;
+  let startX = 0, startY = 0, activePointerId = null;
   let currentX = 0;
   let hasMoved = false;
-  let pointerType = 'touch';
 
-  // Click to flip (only if no drag happened)
   cardElement.addEventListener('click', (e) => {
     if (e.target.closest('[data-audio]')) return;
     if (hasMoved) return;
@@ -2144,32 +2145,35 @@ async function showReviewCard() {
     cardElement.classList.toggle('flipped');
   });
 
-  // Touch swipe (mobile)
-  function onTouchStart(e) {
-    console.log('[Swipe] touchstart', e.target.className);
+  function resetDrag() {
+    activePointerId = null;
+    cardElement.style.transition = '';
+    cardElement.style.transform = '';
+    const leftInd = cardArea.querySelector('.swipe-indicator-left');
+    const rightInd = cardArea.querySelector('.swipe-indicator-right');
+    if (leftInd) leftInd.style.opacity = 0;
+    if (rightInd) rightInd.style.opacity = 0;
+  }
+
+  function onPointerDown(e) {
     if (e.target.closest('[data-audio]')) return;
-    if (e.touches.length !== 1) return;
-    pointerType = 'touch';
-    isDragging = true;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    activePointerId = e.pointerId;
     hasMoved = false;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
+    startX = e.clientX;
+    startY = e.clientY;
     currentX = 0;
+    cardElement.setPointerCapture(e.pointerId);
     cardElement.style.transition = 'none';
   }
 
-  function onTouchMove(e) {
-    if (!isDragging) return;
-    const clientX = e.touches[0].clientX;
-    const clientY = e.touches[0].clientY;
-    currentX = clientX - startX;
-    const deltaY = Math.abs(clientY - startY);
+  function onPointerMove(e) {
+    if (e.pointerId !== activePointerId) return;
+    currentX = e.clientX - startX;
+    const deltaY = Math.abs(e.clientY - startY);
 
-    if (deltaY > 50) {
-      // Vertical scroll — cancel drag
-      isDragging = false;
-      cardElement.style.transition = '';
-      cardElement.style.transform = '';
+    if (deltaY > 50 && deltaY > Math.abs(currentX)) {
+      resetDrag();
       return;
     }
 
@@ -2184,121 +2188,55 @@ async function showReviewCard() {
     if (leftInd) leftInd.style.opacity = currentX < -40 ? Math.min(1, Math.abs(currentX) / 100) : 0;
     if (rightInd) rightInd.style.opacity = currentX > 40 ? Math.min(1, currentX / 100) : 0;
 
-    if (e.cancelable) e.preventDefault();
   }
 
-  function onTouchEnd(e) {
-    console.log('[Swipe] touchend, currentX:', currentX, 'isDragging:', isDragging);
-    if (!isDragging) return;
-    isDragging = false;
-    cardElement.style.transition = '';
-    cardElement.style.transform = '';
-
-    const leftInd = cardArea.querySelector('.swipe-indicator-left');
-    const rightInd = cardArea.querySelector('.swipe-indicator-right');
-    if (leftInd) leftInd.style.opacity = 0;
-    if (rightInd) rightInd.style.opacity = 0;
-
-    if (currentX < -60) {
-      handleReviewResult('remember');
-    } else if (currentX > 60) {
-      handleReviewResult('forget');
+  function onPointerUp(e) {
+    if (e.pointerId !== activePointerId) return;
+    const result = currentX < -60 ? 'remember' : currentX > 60 ? 'again' : null;
+    resetDrag();
+    if (result) {
+      handleReviewResult(result);
     }
   }
 
-  cardElement.addEventListener('touchstart', onTouchStart, { passive: true });
-  cardElement.addEventListener('touchmove', onTouchMove, { passive: false });
-  cardElement.addEventListener('touchend', onTouchEnd);
-
-  // Mouse swipe (desktop) — self-contained, cleaned up on next render
-  function onMouseDown(e) {
-    console.log('[Swipe] mousedown', e.target.className, 'button:', e.button);
-    if (e.target.closest('[data-audio]')) return;
-    if (e.button !== 0) return;
-    pointerType = 'mouse';
-    isDragging = true;
-    hasMoved = false;
-    startX = e.clientX;
-    startY = e.clientY;
-    currentX = 0;
-    cardElement.style.transition = 'none';
-    e.preventDefault();
-  }
-
-  function onMouseMove(e) {
-    if (!isDragging) return;
-    currentX = e.clientX - startX;
-    const deltaY = Math.abs(e.clientY - startY);
-    if (deltaY > 50) return;
-    if (Math.abs(currentX) > 5) hasMoved = true;
-    const rotate = (currentX / 300) * 15;
-    cardElement.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
-    const leftInd = cardArea.querySelector('.swipe-indicator-left');
-    const rightInd = cardArea.querySelector('.swipe-indicator-right');
-    if (leftInd) leftInd.style.opacity = currentX < -40 ? Math.min(1, Math.abs(currentX) / 100) : 0;
-    if (rightInd) rightInd.style.opacity = currentX > 40 ? Math.min(1, currentX / 100) : 0;
-  }
-
-  function onMouseUp(e) {
-    console.log('[Swipe] mouseup, currentX:', currentX, 'isDragging:', isDragging);
-    if (!isDragging) return;
-    isDragging = false;
-    cardElement.style.transition = '';
-    cardElement.style.transform = '';
-    const leftInd = cardArea.querySelector('.swipe-indicator-left');
-    const rightInd = cardArea.querySelector('.swipe-indicator-right');
-    if (leftInd) leftInd.style.opacity = 0;
-    if (rightInd) rightInd.style.opacity = 0;
-    if (currentX < -60) {
-      handleReviewResult('remember');
-    } else if (currentX > 60) {
-      handleReviewResult('forget');
-    }
-  }
-
-  cardElement.addEventListener('mousedown', onMouseDown);
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp, { once: false });
+  cardElement.addEventListener('pointerdown', onPointerDown);
+  cardElement.addEventListener('pointermove', onPointerMove);
+  cardElement.addEventListener('pointerup', onPointerUp);
+  cardElement.addEventListener('pointercancel', resetDrag);
 }
 
 let isSavingReview = false;
 
+function setReviewActionState(disabled) {
+  document.getElementById('btn-review-again')?.toggleAttribute('disabled', disabled);
+  document.getElementById('btn-review-remember')?.toggleAttribute('disabled', disabled);
+}
+
 async function handleReviewResult(result) {
-  // A touch can be followed by a synthetic mouse event on iOS. Ignore it while
-  // the first swipe is being saved and animated out.
   if (isSavingReview || !reviewQueue[reviewIndex]) return;
   isSavingReview = true;
+  setReviewActionState(true);
 
   try {
-  const card = reviewQueue[reviewIndex];
-  const updated = applyReviewResult(card, result);
-  await dbPut(STORE_CARDS, updated);
+    const card = reviewQueue[reviewIndex];
+    const updated = applyReviewResult(card, result);
+    await dbPut(STORE_CARDS, updated);
+    reviewSessionResults.push({ cardId: card.id, result });
 
-  // Record activity
-  try {
-    const log = await getReviewLog();
-    const todayKey = formatDateKey(todayStart());
-    log[todayKey] = (log[todayKey] || 0) + 1;
-    await saveReviewLog(log);
-    console.log('[Activity] Recorded review for', todayKey, 'count:', log[todayKey]);
-  } catch (e) {
-    console.error('[Activity] Failed to record review:', e);
-  }
+    const cardElement = document.getElementById('review-card');
+    if (cardElement) {
+      cardElement.classList.add(result === 'remember' ? 'swipe-left' : 'swipe-right');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
 
-  // Animate card out
-  const cardElement = document.getElementById('review-card');
-  if (cardElement) {
-    cardElement.classList.add(result === 'remember' ? 'swipe-left' : 'swipe-right');
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  reviewIndex++;
-  showReviewCard();
+    reviewIndex++;
+    await showReviewCard();
   } catch (error) {
     console.error('[Review] Failed to save review result:', error);
-    showToast('复习记录保存失败，请再试一次');
+    showToast('Could not save this review. Please try again.');
   } finally {
     isSavingReview = false;
+    setReviewActionState(false);
   }
 }
 
@@ -2306,36 +2244,29 @@ function showReviewComplete() {
   const cardArea = document.getElementById('review-card-area');
   const hintDiv = document.querySelector('.review-card-hint');
   const progressDiv = document.querySelector('.review-progress');
+  const actionDiv = document.querySelector('.review-actions');
   if (hintDiv) hintDiv.remove();
   if (progressDiv) progressDiv.remove();
+  if (actionDiv) actionDiv.remove();
 
-  // Calculate today's stats from reviewQueue
-  let remembered = 0;
-  let forgotten = 0;
-  reviewQueue.forEach(c => {
-    if (c.reviewHistory.length > 0) {
-      const last = c.reviewHistory[c.reviewHistory.length - 1];
-      if (last.result === 'remember') remembered++;
-      else forgotten++;
-    }
-  });
-
+  const remembered = reviewSessionResults.filter(entry => entry.result === 'remember').length;
+  const again = reviewSessionResults.length - remembered;
   cardArea.innerHTML = `
     <div class="review-complete">
-      <div class="review-complete-stamp">今日完成</div>
-      <h3 class="review-empty-title" style="margin-top:var(--space-4)">今天的复习完成了</h3>
+      <div class="review-complete-stamp">Session complete</div>
+      <h3 class="review-empty-title" style="margin-top:var(--space-4)">Nice work today</h3>
       <div class="review-complete-stats">
         <div class="review-complete-stat">
-          <div class="review-complete-stat-num">${reviewQueue.length}</div>
-          <div class="review-complete-stat-label">总复习</div>
+          <div class="review-complete-stat-num">${reviewSessionResults.length}</div>
+          <div class="review-complete-stat-label">Reviewed</div>
         </div>
         <div class="review-complete-stat">
           <div class="review-complete-stat-num" style="color:var(--success)">${remembered}</div>
-          <div class="review-complete-stat-label">记得</div>
+          <div class="review-complete-stat-label">Remembered</div>
         </div>
         <div class="review-complete-stat">
-          <div class="review-complete-stat-num" style="color:var(--danger)">${forgotten}</div>
-          <div class="review-complete-stat-label">不记得</div>
+          <div class="review-complete-stat-num" style="color:var(--danger)">${again}</div>
+          <div class="review-complete-stat-label">Again</div>
         </div>
       </div>
     </div>
@@ -2352,8 +2283,8 @@ async function renderCreatePage(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h2 class="page-title">创建</h2>
-        <p class="page-subtitle">制作一张新的 flash card</p>
+        <h2 class="page-title">Collect</h2>
+        <p class="page-subtitle">Save a Japanese sentence in your own words.</p>
       </div>
     </div>
   `;
@@ -2362,9 +2293,9 @@ async function renderCreatePage(container) {
   if (allCards.length === 0) {
     container.innerHTML += `
       <div class="create-empty">
-        <div class="create-empty-card">创建卡片</div>
+        <div class="create-empty-card">Your first sentence</div>
         <p style="font-size:0.85rem;color:var(--ink-tertiary);max-width:280px">
-          在下方填写正面和反面内容，可选录音，然后保存
+          Add a sentence, then write any translation, grammar note, or memory cue that helps you.
         </p>
       </div>
       <div style="margin-top:var(--space-8)"></div>
@@ -2376,12 +2307,12 @@ async function renderCreatePage(container) {
   formDiv.className = 'create-form';
   formDiv.innerHTML = `
     <div class="create-section">
-      <label class="field-label">正面内容</label>
-      <textarea class="field-textarea" id="create-front" placeholder="输入正面内容（如问题、单词等）" rows="3"></textarea>
+      <label class="field-label">Japanese sentence</label>
+      <textarea class="field-textarea" id="create-front" placeholder="e.g. 今日 は 勉強しました。" rows="3"></textarea>
     </div>
     <div class="create-section">
-      <label class="field-label">反面内容</label>
-      <textarea class="field-textarea" id="create-back" placeholder="输入反面内容（如答案、释义等）" rows="3"></textarea>
+      <label class="field-label">Your translation or note</label>
+      <textarea class="field-textarea" id="create-back" placeholder="Translation, grammar note, context, or anything you want to remember" rows="3"></textarea>
     </div>
     <div class="create-section">
       <div class="audio-section">
@@ -2389,15 +2320,15 @@ async function renderCreatePage(container) {
           <div class="record-btn-icon"></div>
         </div>
         <div class="audio-section-label">
-          <span>录音（可选）</span>
-          <span id="record-status">点击录音按钮开始</span>
+          <span>Audio (optional)</span>
+          <span id="record-status">Tap to start recording</span>
         </div>
         <div id="record-preview"></div>
       </div>
     </div>
     <div class="create-actions">
-      <button class="btn btn-primary" id="btn-save-card">${icon('check')} 保存卡片</button>
-      <button class="btn btn-ghost" id="btn-clear">清空</button>
+      <button class="btn btn-primary" id="btn-save-card">${icon('check')} Save sentence</button>
+      <button class="btn btn-ghost" id="btn-clear">Clear</button>
     </div>
   `;
   container.appendChild(formDiv);
@@ -2414,13 +2345,13 @@ async function renderCreatePage(container) {
       if (ok) {
         isRecording = true;
         recordBtn.classList.add('recording');
-        recordStatus.textContent = '录音中... 再次点击停止';
+        recordStatus.textContent = 'Recording… tap again to stop';
       }
     } else {
       stopRecording();
       isRecording = false;
       recordBtn.classList.remove('recording');
-      recordStatus.textContent = '录音完成';
+      recordStatus.textContent = 'Recording ready';
     }
   };
 
@@ -2430,7 +2361,7 @@ async function renderCreatePage(container) {
     const front = document.getElementById('create-front').value.trim();
     const back = document.getElementById('create-back').value.trim();
     if (!front || !back) {
-      showToast('请填写正面和反面内容');
+      showToast('Please add both a sentence and your note.');
       return;
     }
 
@@ -2443,26 +2374,15 @@ async function renderCreatePage(container) {
     const card = makeCard(front, back, audioId);
     await dbPut(STORE_CARDS, card);
 
-    // Record activity day (创建也算活动)
-    try {
-      const log = await getReviewLog();
-      const todayKey = formatDateKey(todayStart());
-      log[todayKey] = (log[todayKey] || 0) + 1;
-      await saveReviewLog(log);
-      console.log('[Activity] Recorded for', todayKey, 'count:', log[todayKey]);
-    } catch (e) {
-      console.error('[Activity] Failed to record:', e);
-    }
-
     // Reset form
     document.getElementById('create-front').value = '';
     document.getElementById('create-back').value = '';
     currentAudioBlob = null;
     currentAudioUrl = null;
     recordPreview.innerHTML = '';
-    recordStatus.textContent = '点击录音按钮开始';
+    recordStatus.textContent = 'Tap to start recording';
 
-    showToast('卡片已保存');
+    showToast('Sentence saved. It is ready to review now.');
     renderCreatePage(container);
   };
 
@@ -2473,7 +2393,7 @@ async function renderCreatePage(container) {
     currentAudioBlob = null;
     currentAudioUrl = null;
     recordPreview.innerHTML = '';
-    recordStatus.textContent = '点击录音按钮开始';
+    recordStatus.textContent = 'Tap to start recording';
   };
 
   // Card list
@@ -2482,13 +2402,12 @@ async function renderCreatePage(container) {
     listDiv.className = 'card-list';
     listDiv.innerHTML = `
       <div class="card-list-header">
-        <h3>已创建的卡片</h3>
-        <span class="card-list-count">共 ${allCards.length} 张</span>
+        <h3>Your collection</h3>
+        <span class="card-list-count">${allCards.length} saved</span>
       </div>
     `;
 
     for (const card of allCards) {
-      const group = getCardGroup(card);
       const item = document.createElement('div');
       item.className = 'card-list-item';
       item.innerHTML = `
@@ -2496,15 +2415,10 @@ async function renderCreatePage(container) {
           <div class="card-list-item-front">${escapeHtml(card.front)}</div>
           <div class="card-list-item-back">${escapeHtml(card.back)}</div>
         </div>
-        <div class="card-list-item-meta">
-          ${card.audioId ? `<span class="card-list-item-audio">${icon('volume')}</span>` : ''}
-          <span class="mastery-chip" data-group="${group}" style="font-size:0.68rem;padding:1px 6px">
-            <span class="mastery-chip-dot"></span>
-          </span>
-        </div>
+        <div class="card-list-item-meta">${card.audioId ? `<span class="card-list-item-audio">${icon('volume')}</span>` : ''}</div>
         <div class="card-list-item-actions">
-          <button class="icon-btn" data-edit="${card.id}" title="编辑">${icon('edit')}</button>
-          <button class="icon-btn" data-delete="${card.id}" title="删除">${icon('trash')}</button>
+          <button class="icon-btn" data-edit="${card.id}" title="Edit">${icon('edit')}</button>
+          <button class="icon-btn" data-delete="${card.id}" title="Delete">${icon('trash')}</button>
         </div>
       `;
 
@@ -2528,7 +2442,7 @@ function onRecordingComplete() {
     <div class="audio-bar">
       <div class="audio-bar-play" id="preview-play">${icon('play')}</div>
       <span class="audio-bar-time" id="preview-time">00:00</span>
-      <button class="audio-bar-remove" id="preview-remove">删除</button>
+      <button class="audio-bar-remove" id="preview-remove">Remove</button>
     </div>
   `;
 
@@ -2558,7 +2472,7 @@ function onRecordingComplete() {
     currentAudioBlob = null;
     currentAudioUrl = null;
     recordPreview.innerHTML = '';
-    recordStatus.textContent = '录音已删除';
+    recordStatus.textContent = 'Recording removed';
   };
 }
 
@@ -2576,14 +2490,14 @@ function openEditModal(card) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-content" style="max-width:560px">
-      <h3 class="modal-title">编辑卡片</h3>
+      <h3 class="modal-title">Edit sentence</h3>
       <div class="create-form" style="margin-top:var(--space-4)">
         <div class="create-section">
-          <label class="field-label">正面内容</label>
+          <label class="field-label">Japanese sentence</label>
           <textarea class="field-textarea" id="edit-front" rows="3">${escapeHtml(card.front)}</textarea>
         </div>
         <div class="create-section">
-          <label class="field-label">反面内容</label>
+          <label class="field-label">Your translation or note</label>
           <textarea class="field-textarea" id="edit-back" rows="3">${escapeHtml(card.back)}</textarea>
         </div>
         <div class="create-section">
@@ -2592,16 +2506,16 @@ function openEditModal(card) {
               <div class="record-btn-icon"></div>
             </div>
             <div class="audio-section-label">
-              <span>录音</span>
-              <span id="edit-record-status">${card.audioId ? '已有录音' : '点击录音按钮开始'}</span>
+              <span>Audio</span>
+              <span id="edit-record-status">${card.audioId ? 'Recording attached' : 'Tap to start recording'}</span>
             </div>
             <div id="edit-record-preview"></div>
           </div>
         </div>
       </div>
       <div class="modal-actions" style="margin-top:var(--space-5)">
-        <button class="btn btn-ghost" id="modal-cancel">取消</button>
-        <button class="btn btn-primary" id="modal-save">${icon('check')} 保存</button>
+        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-save">${icon('check')} Save</button>
       </div>
     </div>
   `;
@@ -2627,7 +2541,7 @@ function openEditModal(card) {
       <div class="audio-bar">
         <div class="audio-bar-play" id="edit-preview-play">${icon('play')}</div>
         <span class="audio-bar-time" id="edit-preview-time">00:00</span>
-        <button class="audio-bar-remove" id="edit-preview-remove">删除</button>
+        <button class="audio-bar-remove" id="edit-preview-remove">Remove</button>
       </div>
     `;
     bindAudioPreview(editAudioUrl);
@@ -2664,7 +2578,7 @@ function openEditModal(card) {
         editAudioUrl = null;
         editRemovedExisting = true;
         editRecordPreview.innerHTML = '';
-        editRecordStatus.textContent = '录音已删除，可重新录制';
+        editRecordStatus.textContent = 'Recording removed. You can record a new one.';
       };
     }
   }
@@ -2702,7 +2616,7 @@ function openEditModal(card) {
             <div class="audio-bar">
               <div class="audio-bar-play" id="edit-preview-play">${icon('play')}</div>
               <span class="audio-bar-time" id="edit-preview-time">00:00</span>
-              <button class="audio-bar-remove" id="edit-preview-remove">删除</button>
+              <button class="audio-bar-remove" id="edit-preview-remove">Remove</button>
             </div>
           `;
           bindAudioPreview(editAudioUrl);
@@ -2711,15 +2625,15 @@ function openEditModal(card) {
         editMediaRecorder.start();
         editIsRecording = true;
         editRecordBtn.classList.add('recording');
-        editRecordStatus.textContent = '录音中... 再次点击停止';
+        editRecordStatus.textContent = 'Recording… tap again to stop';
       } catch (err) {
-        showToast('麦克风访问失败：' + err.message);
+        showToast('Microphone access failed: ' + err.message);
       }
     } else {
       editMediaRecorder.stop();
       editIsRecording = false;
       editRecordBtn.classList.remove('recording');
-      editRecordStatus.textContent = '新录音完成';
+      editRecordStatus.textContent = 'New recording ready';
       editRemovedExisting = false;
     }
   };
@@ -2750,7 +2664,7 @@ function openEditModal(card) {
 
     await dbPut(STORE_CARDS, card);
     overlay.remove();
-    showToast('卡片已更新');
+    showToast('Sentence updated.');
     navigate('create');
   };
 }
@@ -2760,11 +2674,11 @@ function openDeleteModal(cardId) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-content">
-      <h3 class="modal-title">删除卡片？</h3>
-      <p class="modal-text">此操作不可撤销，卡片及其录音将被永久删除。</p>
+      <h3 class="modal-title">Delete this sentence?</h3>
+      <p class="modal-text">This cannot be undone. The sentence and its recording will be removed.</p>
       <div class="modal-actions">
-        <button class="btn btn-ghost" id="modal-cancel">取消</button>
-        <button class="btn btn-danger" id="modal-confirm">${icon('trash')} 删除</button>
+        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="modal-confirm">${icon('trash')} Delete</button>
       </div>
     </div>
   `;
@@ -2780,7 +2694,7 @@ function openDeleteModal(cardId) {
     }
     await dbDelete(STORE_CARDS, cardId);
     overlay.remove();
-    showToast('卡片已删除');
+    showToast('Sentence deleted.');
     navigate('create');
   };
 }
@@ -2791,64 +2705,48 @@ function openDeleteModal(cardId) {
 async function renderGrowthPage(container) {
   const allCards = await dbGetAll(STORE_CARDS);
   const reviewLog = await getReviewLog();
-
-  console.log('[Growth] reviewLog:', JSON.stringify(reviewLog));
-  console.log('[Growth] allCards:', allCards.length);
-  console.log('[Growth] todayKey:', formatDateKey(todayStart()));
-
   const streak = calculateStreak(reviewLog);
-  const longestStreak = calculateLongestStreak(reviewLog);
-  const yearActive = calculateYearActiveDays(reviewLog);
   const totalCards = allCards.length;
-
-  console.log('[Growth] streak:', streak, 'longest:', longestStreak, 'yearActive:', yearActive);
-
-  // Today stats
   const todayKey = formatDateKey(todayStart());
-  const todayCount = reviewLog[todayKey] || 0;
+  const reviewedToday = reviewLog[todayKey] || 0;
   const dueCards = allCards.filter(c => isCardDue(c)).length;
-
-  // Group distribution
-  const groupDist = { learning: 0, familiar: 0, mastered: 0 };
-  allCards.forEach(c => { groupDist[getCardGroup(c)]++; });
+  const confidentCards = allCards.filter(card => card.stage >= 4).length;
 
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h2 class="page-title">成长</h2>
-        <p class="page-subtitle">你的坚持轨迹</p>
+        <h2 class="page-title">Progress</h2>
+        <p class="page-subtitle">A clear view of your Japanese learning habit.</p>
       </div>
     </div>
   `;
 
-  // Stats cards
   const statsDiv = document.createElement('div');
   statsDiv.className = 'growth-stats';
   statsDiv.innerHTML = `
     <div class="growth-stat-card">
-      <div class="growth-stat-icon">${icon('flame')}</div>
-      <div class="growth-stat-num">${streak}<span class="growth-stat-unit">天</span></div>
-      <div class="growth-stat-label">当前连续</div>
+      <div class="growth-stat-icon">${icon('check')}</div>
+      <div class="growth-stat-num">${reviewedToday}</div>
+      <div class="growth-stat-label">Reviewed today</div>
     </div>
     <div class="growth-stat-card">
       <div class="growth-stat-icon">${icon('flame')}</div>
-      <div class="growth-stat-num">${longestStreak}<span class="growth-stat-unit">天</span></div>
-      <div class="growth-stat-label">最长连续</div>
-    </div>
-    <div class="growth-stat-card">
-      <div class="growth-stat-icon">${icon('calendar')}</div>
-      <div class="growth-stat-num">${yearActive}<span class="growth-stat-unit">天</span></div>
-      <div class="growth-stat-label">一年内坚持</div>
+      <div class="growth-stat-num">${streak}<span class="growth-stat-unit">days</span></div>
+      <div class="growth-stat-label">Current streak</div>
     </div>
     <div class="growth-stat-card">
       <div class="growth-stat-icon">${icon('layers')}</div>
-      <div class="growth-stat-num">${totalCards}<span class="growth-stat-unit">张</span></div>
-      <div class="growth-stat-label">总卡片数</div>
+      <div class="growth-stat-num">${totalCards}</div>
+      <div class="growth-stat-label">Sentences saved</div>
+    </div>
+    <div class="growth-stat-card">
+      <div class="growth-stat-icon">${icon('check')}</div>
+      <div class="growth-stat-num">${confidentCards}</div>
+      <div class="growth-stat-label">Confident recall</div>
     </div>
   `;
   container.appendChild(statsDiv);
 
-  // Heatmap
   const heatmapData = getHeatmapData(reviewLog);
   const heatmapDiv = document.createElement('div');
   heatmapDiv.className = 'heatmap-container';
@@ -2856,25 +2754,22 @@ async function renderGrowthPage(container) {
   const heatmapHeader = document.createElement('div');
   heatmapHeader.className = 'heatmap-header';
   heatmapHeader.innerHTML = `
-    <h3>复习热力图</h3>
+    <h3>Review activity · last 12 weeks</h3>
     <div class="heatmap-legend">
-      <span>少</span>
+      <span>Less</span>
       <div class="heatmap-legend-cells">
         <div class="heatmap-legend-cell" style="background:oklch(88% 0.008 70 / 0.4)"></div>
-        <div class="heatmap-legend-cell" style="background:oklch(82% 0.04 40 / 0.6)"></div>
-        <div class="heatmap-legend-cell" style="background:oklch(70% 0.06 40 / 0.7)"></div>
-        <div class="heatmap-legend-cell" style="background:oklch(58% 0.08 35 / 0.8)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(76% 0.065 40)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(65% 0.08 40)"></div>
+        <div class="heatmap-legend-cell" style="background:oklch(55% 0.095 35)"></div>
         <div class="heatmap-legend-cell" style="background:oklch(48% 0.1 30)"></div>
       </div>
-      <span>多</span>
+      <span>More</span>
     </div>
   `;
   heatmapDiv.appendChild(heatmapHeader);
 
-  // Build heatmap: columns = weeks, rows = days (Sun=0 at top)
   const CELL = 12, GAP = 3, LABEL_W = 20;
-
-  // Group data into weeks (7-day columns, Sun-first)
   const weeks = [];
   for (let i = 0; i < heatmapData.length; i += 7) {
     weeks.push(heatmapData.slice(i, i + 7));
@@ -2884,7 +2779,6 @@ async function renderGrowthPage(container) {
   gridWrapper.style.display = 'inline-block';
   gridWrapper.style.minWidth = 'fit-content';
 
-  // Month labels row — aligned above week columns
   const monthLabelRow = document.createElement('div');
   monthLabelRow.style.display = 'flex';
   monthLabelRow.style.height = '16px';
@@ -2895,8 +2789,6 @@ async function renderGrowthPage(container) {
   const monthEntries = [];
 
   weeks.forEach((week, colIdx) => {
-    // Put a label in the column containing the first day of each month. Looking
-    // only at Sunday mislabels months whose first day falls mid-week.
     const firstOfMonth = week.find(entry => new Date(entry.date).getDate() === 1);
     const month = firstOfMonth ? new Date(firstOfMonth.date).getMonth() : null;
     if (colIdx === 0 || (month !== null && month !== prevMonth)) {
@@ -2916,24 +2808,22 @@ async function renderGrowthPage(container) {
     spacer.style.color = 'var(--ink-faint)';
     spacer.style.overflow = 'hidden';
     spacer.style.whiteSpace = 'nowrap';
-    spacer.textContent = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][me.month];
+    spacer.textContent = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][me.month];
     monthLabelRow.appendChild(spacer);
   });
 
   gridWrapper.appendChild(monthLabelRow);
 
-  // Grid body: day labels + week columns
   const gridBody = document.createElement('div');
   gridBody.style.display = 'flex';
 
-  // Day labels column (7 rows: Sun=0 at top, then Mon, Tue, ...)
   const dayLabelCol = document.createElement('div');
   dayLabelCol.style.width = LABEL_W + 'px';
   dayLabelCol.style.display = 'flex';
   dayLabelCol.style.flexDirection = 'column';
   dayLabelCol.style.gap = GAP + 'px';
 
-  const dayNames = ['日','一','二','三','四','五','六'];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   dayNames.forEach((d, i) => {
     const label = document.createElement('div');
     label.style.height = CELL + 'px';
@@ -2948,7 +2838,6 @@ async function renderGrowthPage(container) {
   });
   gridBody.appendChild(dayLabelCol);
 
-  // Week columns
   const weekCols = document.createElement('div');
   weekCols.style.display = 'flex';
   weekCols.style.gap = GAP + 'px';
@@ -2964,7 +2853,7 @@ async function renderGrowthPage(container) {
       cell.className = 'heatmap-cell';
       if (week[r]) {
         cell.dataset.level = week[r].level;
-        cell.title = `${formatDateKey(week[r].date)}: ${week[r].count} 次`;
+        cell.title = `${formatDateKey(week[r].date)}: ${week[r].count} reviewed`;
       } else {
         cell.dataset.level = '0';
       }
@@ -2978,31 +2867,18 @@ async function renderGrowthPage(container) {
   heatmapDiv.appendChild(gridWrapper);
   container.appendChild(heatmapDiv);
 
-  // Today summary
   const todayDiv = document.createElement('div');
   todayDiv.className = 'today-summary';
   todayDiv.innerHTML = `
-    <h3>今日概况</h3>
+    <h3>Today</h3>
     <div class="today-summary-grid">
       <div class="today-summary-item">
-        <div class="today-summary-num" style="color:var(--accent)">${todayCount}</div>
-        <div class="today-summary-label">今日活动</div>
+        <div class="today-summary-num" style="color:var(--accent)">${reviewedToday}</div>
+        <div class="today-summary-label">Cards reviewed</div>
       </div>
       <div class="today-summary-item">
         <div class="today-summary-num" style="color:var(--warning)">${dueCards}</div>
-        <div class="today-summary-label">待复习</div>
-      </div>
-      <div class="today-summary-item">
-        <div class="today-summary-num" style="color:var(--mastery-learn)">${groupDist.learning}</div>
-        <div class="today-summary-label">学习组</div>
-      </div>
-      <div class="today-summary-item">
-        <div class="today-summary-num" style="color:var(--mastery-familiar)">${groupDist.familiar}</div>
-        <div class="today-summary-label">熟悉组</div>
-      </div>
-      <div class="today-summary-item">
-        <div class="today-summary-num" style="color:var(--mastery-master)">${groupDist.mastered}</div>
-        <div class="today-summary-label">掌握组</div>
+        <div class="today-summary-label">Still due</div>
       </div>
     </div>
   `;
@@ -3045,7 +2921,7 @@ async function exportData() {
   a.download = `flashcards_${formatDateKey(todayStart())}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('数据已导出');
+  showToast('Backup exported.');
 }
 
 function blobToBase64(blob) {
@@ -3075,7 +2951,7 @@ async function importData(file) {
     const data = JSON.parse(text);
 
     if (!data.cards || !Array.isArray(data.cards)) {
-      showToast('文件格式不正确');
+      showToast('That file is not a valid backup.');
       return;
     }
 
@@ -3098,10 +2974,10 @@ async function importData(file) {
       await saveReviewLog(data.reviewLog);
     }
 
-    showToast(`已导入 ${imported} 张卡片`);
+    showToast(`Imported ${imported} sentences.`);
     navigate(currentPage);
   } catch (err) {
-    showToast('导入失败：' + err.message);
+    showToast('Import failed: ' + err.message);
   }
 }
 
@@ -3166,7 +3042,7 @@ openDB().then(() => {
     init();
   }
 }).catch(err => {
-  document.body.innerHTML = '<div style="padding:2rem;text-align:center">数据库初始化失败：' + err.message + '</div>';
+  document.body.innerHTML = '<div style="padding:2rem;text-align:center">Database could not start: ' + err.message + '</div>';
 });
 </script>
 </body>
