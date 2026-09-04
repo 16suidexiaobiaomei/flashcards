@@ -1753,7 +1753,7 @@ function isCardDue(card) {
   return card.nextReview !== null && card.nextReview <= todayStart();
 }
 
-function reviewCard(card, result) {
+function applyReviewResult(card, result) {
   const today = todayStart();
   if (result === 'remember') {
     card.rememberCount++;
@@ -1843,16 +1843,15 @@ function calculateYearActiveDays(log) {
 function getHeatmapData(log) {
   const today = todayStart();
   const data = [];
-  // Start from 364 days ago, aligned to week (Sunday = 0)
-  const start = today - 364 * 86400000;
-  const startDay = new Date(start).getDay(); // 0=Sun
-
-  // Align to start of week
-  const firstDate = start - startDay * 86400000;
-  let date = firstDate;
-  while (date <= today) {
+  const day = 86400000;
+  // Always render complete Sunday–Saturday columns. This keeps the weekday axis
+  // stable on every day of the week instead of shifting the last column.
+  const thisWeek = today - new Date(today).getDay() * day;
+  let date = thisWeek - 52 * 7 * day; // 53 calendar-week columns including this week
+  const end = thisWeek + 6 * day;
+  while (date <= end) {
     const key = formatDateKey(date);
-    const count = log[key] || 0;
+    const count = date <= today ? (log[key] || 0) : 0;
     let level = 0;
     if (count >= 1 && count <= 2) level = 1;
     else if (count >= 3 && count <= 5) level = 2;
@@ -2130,7 +2129,7 @@ async function showReviewCard() {
   });
 
   // Card flip + swipe
-  const reviewCard = document.getElementById('review-card');
+  const cardElement = document.getElementById('review-card');
   let isFlipped = false;
   let startX = 0, startY = 0, isDragging = false;
   let currentX = 0;
@@ -2138,11 +2137,11 @@ async function showReviewCard() {
   let pointerType = 'touch';
 
   // Click to flip (only if no drag happened)
-  reviewCard.addEventListener('click', (e) => {
+  cardElement.addEventListener('click', (e) => {
     if (e.target.closest('[data-audio]')) return;
     if (hasMoved) return;
     isFlipped = !isFlipped;
-    reviewCard.classList.toggle('flipped');
+    cardElement.classList.toggle('flipped');
   });
 
   // Touch swipe (mobile)
@@ -2156,7 +2155,7 @@ async function showReviewCard() {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     currentX = 0;
-    reviewCard.style.transition = 'none';
+    cardElement.style.transition = 'none';
   }
 
   function onTouchMove(e) {
@@ -2169,15 +2168,15 @@ async function showReviewCard() {
     if (deltaY > 50) {
       // Vertical scroll — cancel drag
       isDragging = false;
-      reviewCard.style.transition = '';
-      reviewCard.style.transform = '';
+      cardElement.style.transition = '';
+      cardElement.style.transform = '';
       return;
     }
 
     if (Math.abs(currentX) > 5) hasMoved = true;
 
     const rotate = (currentX / 300) * 15;
-    reviewCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+    cardElement.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
 
     // Show indicators
     const leftInd = cardArea.querySelector('.swipe-indicator-left');
@@ -2192,8 +2191,8 @@ async function showReviewCard() {
     console.log('[Swipe] touchend, currentX:', currentX, 'isDragging:', isDragging);
     if (!isDragging) return;
     isDragging = false;
-    reviewCard.style.transition = '';
-    reviewCard.style.transform = '';
+    cardElement.style.transition = '';
+    cardElement.style.transform = '';
 
     const leftInd = cardArea.querySelector('.swipe-indicator-left');
     const rightInd = cardArea.querySelector('.swipe-indicator-right');
@@ -2207,9 +2206,9 @@ async function showReviewCard() {
     }
   }
 
-  reviewCard.addEventListener('touchstart', onTouchStart, { passive: true });
-  reviewCard.addEventListener('touchmove', onTouchMove, { passive: false });
-  reviewCard.addEventListener('touchend', onTouchEnd);
+  cardElement.addEventListener('touchstart', onTouchStart, { passive: true });
+  cardElement.addEventListener('touchmove', onTouchMove, { passive: false });
+  cardElement.addEventListener('touchend', onTouchEnd);
 
   // Mouse swipe (desktop) — self-contained, cleaned up on next render
   function onMouseDown(e) {
@@ -2222,7 +2221,7 @@ async function showReviewCard() {
     startX = e.clientX;
     startY = e.clientY;
     currentX = 0;
-    reviewCard.style.transition = 'none';
+    cardElement.style.transition = 'none';
     e.preventDefault();
   }
 
@@ -2233,7 +2232,7 @@ async function showReviewCard() {
     if (deltaY > 50) return;
     if (Math.abs(currentX) > 5) hasMoved = true;
     const rotate = (currentX / 300) * 15;
-    reviewCard.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+    cardElement.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
     const leftInd = cardArea.querySelector('.swipe-indicator-left');
     const rightInd = cardArea.querySelector('.swipe-indicator-right');
     if (leftInd) leftInd.style.opacity = currentX < -40 ? Math.min(1, Math.abs(currentX) / 100) : 0;
@@ -2244,8 +2243,8 @@ async function showReviewCard() {
     console.log('[Swipe] mouseup, currentX:', currentX, 'isDragging:', isDragging);
     if (!isDragging) return;
     isDragging = false;
-    reviewCard.style.transition = '';
-    reviewCard.style.transform = '';
+    cardElement.style.transition = '';
+    cardElement.style.transform = '';
     const leftInd = cardArea.querySelector('.swipe-indicator-left');
     const rightInd = cardArea.querySelector('.swipe-indicator-right');
     if (leftInd) leftInd.style.opacity = 0;
@@ -2257,14 +2256,22 @@ async function showReviewCard() {
     }
   }
 
-  reviewCard.addEventListener('mousedown', onMouseDown);
+  cardElement.addEventListener('mousedown', onMouseDown);
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp, { once: false });
 }
 
+let isSavingReview = false;
+
 async function handleReviewResult(result) {
+  // A touch can be followed by a synthetic mouse event on iOS. Ignore it while
+  // the first swipe is being saved and animated out.
+  if (isSavingReview || !reviewQueue[reviewIndex]) return;
+  isSavingReview = true;
+
+  try {
   const card = reviewQueue[reviewIndex];
-  const updated = reviewCard(card, result);
+  const updated = applyReviewResult(card, result);
   await dbPut(STORE_CARDS, updated);
 
   // Record activity
@@ -2279,14 +2286,20 @@ async function handleReviewResult(result) {
   }
 
   // Animate card out
-  const reviewCard = document.getElementById('review-card');
-  if (reviewCard) {
-    reviewCard.classList.add(result === 'remember' ? 'swipe-left' : 'swipe-right');
+  const cardElement = document.getElementById('review-card');
+  if (cardElement) {
+    cardElement.classList.add(result === 'remember' ? 'swipe-left' : 'swipe-right');
     await new Promise(r => setTimeout(r, 300));
   }
 
   reviewIndex++;
   showReviewCard();
+  } catch (error) {
+    console.error('[Review] Failed to save review result:', error);
+    showToast('复习记录保存失败，请再试一次');
+  } finally {
+    isSavingReview = false;
+  }
 }
 
 function showReviewComplete() {
@@ -2882,12 +2895,14 @@ async function renderGrowthPage(container) {
   const monthEntries = [];
 
   weeks.forEach((week, colIdx) => {
-    if (week.length > 0) {
-      const m = new Date(week[0].date).getMonth();
-      if (m !== prevMonth) {
-        monthEntries.push({ colIdx, month: m });
-        prevMonth = m;
-      }
+    // Put a label in the column containing the first day of each month. Looking
+    // only at Sunday mislabels months whose first day falls mid-week.
+    const firstOfMonth = week.find(entry => new Date(entry.date).getDate() === 1);
+    const month = firstOfMonth ? new Date(firstOfMonth.date).getMonth() : null;
+    if (colIdx === 0 || (month !== null && month !== prevMonth)) {
+      const visibleMonth = month !== null ? month : new Date(week[0].date).getMonth();
+      monthEntries.push({ colIdx, month: visibleMonth });
+      prevMonth = visibleMonth;
     }
   });
 
